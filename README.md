@@ -1,4 +1,4 @@
-# 韭菜盘 (TradeMind AI)
+# 韭菜盘 (JCP AI)
 
 > AI 驱动的智能股票分析系统 - 多 Agent 协作，让投资决策更智能
 
