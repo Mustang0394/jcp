@@ -5,10 +5,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/run-bigpig/jcp/internal/logger"
 	"github.com/run-bigpig/jcp/internal/models"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
+
+var pusherLog = logger.New("pusher")
 
 // 事件名称常量
 const (
@@ -25,7 +28,7 @@ const (
 func safeCall(fn func()) {
 	defer func() {
 		if r := recover(); r != nil {
-			// 可以在这里记录日志
+			pusherLog.Error("panic recovered: %v", r)
 		}
 	}()
 	fn()
