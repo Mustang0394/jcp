@@ -502,12 +502,15 @@ func (ms *MarketService) GenerateOrderBook(price float64) models.OrderBook {
 
 // GetMarketStatus 获取当前市场交易状态
 func (ms *MarketService) GetMarketStatus() MarketStatus {
+	fmt.Println("[GetMarketStatus] 开始获取市场状态")
 	now := time.Now()
 	loc, _ := time.LoadLocation("Asia/Shanghai")
 	now = now.In(loc)
+	fmt.Printf("[GetMarketStatus] 当前时间: %s, 星期: %s\n", now.Format("2006-01-02 15:04:05"), now.Weekday())
 
 	// 检查是否为交易日
 	isTradeDay, holidayName := ms.isTradeDay(now)
+	fmt.Printf("[GetMarketStatus] isTradeDay=%v, holidayName=%s\n", isTradeDay, holidayName)
 
 	if !isTradeDay {
 		statusText := "休市"
@@ -516,38 +519,46 @@ func (ms *MarketService) GetMarketStatus() MarketStatus {
 		} else if now.Weekday() == time.Saturday || now.Weekday() == time.Sunday {
 			statusText = "周末休市"
 		}
-		return MarketStatus{
+		result := MarketStatus{
 			Status:      "closed",
 			StatusText:  statusText,
 			IsTradeDay:  false,
 			HolidayName: holidayName,
 		}
+		fmt.Printf("[GetMarketStatus] 返回结果: %+v\n", result)
+		return result
 	}
 
 	// 交易日，判断当前时间段
 	hour, minute := now.Hour(), now.Minute()
 	currentMinutes := hour*60 + minute
+	fmt.Printf("[GetMarketStatus] 交易日时间判断: %02d:%02d, currentMinutes=%d\n", hour, minute, currentMinutes)
 
 	// A股交易时间: 9:30-11:30, 13:00-15:00
+	var result MarketStatus
 	switch {
 	case currentMinutes < 9*60+15:
-		return MarketStatus{Status: "pre_market", StatusText: "盘前", IsTradeDay: true}
+		result = MarketStatus{Status: "pre_market", StatusText: "盘前", IsTradeDay: true}
 	case currentMinutes < 9*60+30:
-		return MarketStatus{Status: "pre_market", StatusText: "集合竞价", IsTradeDay: true}
+		result = MarketStatus{Status: "pre_market", StatusText: "集合竞价", IsTradeDay: true}
 	case currentMinutes < 11*60+30:
-		return MarketStatus{Status: "trading", StatusText: "交易中", IsTradeDay: true}
+		result = MarketStatus{Status: "trading", StatusText: "交易中", IsTradeDay: true}
 	case currentMinutes < 13*60:
-		return MarketStatus{Status: "lunch_break", StatusText: "午间休市", IsTradeDay: true}
+		result = MarketStatus{Status: "lunch_break", StatusText: "午间休市", IsTradeDay: true}
 	case currentMinutes < 15*60:
-		return MarketStatus{Status: "trading", StatusText: "交易中", IsTradeDay: true}
+		result = MarketStatus{Status: "trading", StatusText: "交易中", IsTradeDay: true}
 	default:
-		return MarketStatus{Status: "closed", StatusText: "已收盘", IsTradeDay: true}
+		result = MarketStatus{Status: "closed", StatusText: "已收盘", IsTradeDay: true}
 	}
+	fmt.Printf("[GetMarketStatus] 返回结果: %+v\n", result)
+	return result
 }
 
 // isTradeDay 判断是否为交易日
 func (ms *MarketService) isTradeDay(_ time.Time) (bool, string) {
+	fmt.Println("[isTradeDay] 开始判断是否为交易日")
 	isHoliday, note := ms.getTodayHolidayStatus()
+	fmt.Printf("[isTradeDay] getTodayHolidayStatus返回: isHoliday=%v, note=%s\n", isHoliday, note)
 	if isHoliday {
 		return false, note
 	}
@@ -556,15 +567,19 @@ func (ms *MarketService) isTradeDay(_ time.Time) (bool, string) {
 
 // getTodayHolidayStatus 获取当天节假日状态（带缓存）
 func (ms *MarketService) getTodayHolidayStatus() (bool, string) {
+	fmt.Println("[getTodayHolidayStatus] 检查缓存")
 	ms.todayCacheMu.RLock()
 	if ms.todayCache != nil && time.Since(ms.todayCache.timestamp) < time.Hour {
 		defer ms.todayCacheMu.RUnlock()
+		fmt.Printf("[getTodayHolidayStatus] 命中缓存: isHoliday=%v, note=%s\n", ms.todayCache.isHoliday, ms.todayCache.note)
 		return ms.todayCache.isHoliday, ms.todayCache.note
 	}
 	ms.todayCacheMu.RUnlock()
 
 	// 缓存过期或不存在，重新获取
+	fmt.Println("[getTodayHolidayStatus] 缓存未命中，调用API")
 	isHoliday, note := ms.fetchTodayHolidayStatus()
+	fmt.Printf("[getTodayHolidayStatus] API返回: isHoliday=%v, note=%s\n", isHoliday, note)
 
 	ms.todayCacheMu.Lock()
 	ms.todayCache = &todayHolidayCache{

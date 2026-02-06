@@ -206,7 +206,7 @@ const App: React.FC = () => {
       }
     };
     fetchMarketIndices();
-    const interval = setInterval(fetchMarketIndices, 5000);
+    const interval = setInterval(fetchMarketIndices, 3000);
     return () => clearInterval(interval);
   }, []);
 
