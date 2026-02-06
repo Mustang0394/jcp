@@ -22,15 +22,15 @@ jobs:
           - platform: linux/amd64
             os: ubuntu-latest
             output: jcp
-            archive: jcp-linux-amd64.tar.gz
+            suffix: tar.gz
           - platform: windows/amd64
             os: windows-latest
             output: jcp.exe
-            archive: jcp-windows-amd64.zip
+            suffix: zip
           - platform: darwin/universal
             os: macos-latest
             output: jcp.app
-            archive: jcp-macos-universal.zip
+            suffix: zip
 
     runs-on: ${{ matrix.os }}
 
@@ -62,28 +62,33 @@ jobs:
       - name: Build
         run: wails build -platform ${{ matrix.platform }}
 
+      - name: Get Version
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        shell: bash
+
       - name: Package (Linux)
         if: runner.os == 'Linux'
         run: |
           cd build/bin
-          tar -czvf ${{ matrix.archive }} ${{ matrix.output }}
+          tar -czvf jcp-linux-${{ steps.version.outputs.version }}.${{ matrix.suffix }} ${{ matrix.output }}
 
       - name: Package (Windows)
         if: runner.os == 'Windows'
         run: |
-          Compress-Archive -Path build/bin/${{ matrix.output }} -DestinationPath build/bin/${{ matrix.archive }}
+          Compress-Archive -Path build/bin/${{ matrix.output }} -DestinationPath build/bin/jcp-windows-${{ steps.version.outputs.version }}.${{ matrix.suffix }}
 
       - name: Package (macOS)
         if: runner.os == 'macOS'
         run: |
           cd build/bin
-          zip -r ${{ matrix.archive }} ${{ matrix.output }}
+          zip -r jcp-macos-${{ steps.version.outputs.version }}.${{ matrix.suffix }} ${{ matrix.output }}
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.archive }}
-          path: build/bin/${{ matrix.archive }}
+          name: jcp-${{ runner.os }}-${{ steps.version.outputs.version }}
+          path: build/bin/*.${{ matrix.suffix }}
 
   release:
     needs: build
