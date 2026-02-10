@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, Cpu, Bot, ChevronLeft, Plug, Plus, Trash2, Wrench, Sliders, Check, Loader2, Brain, RefreshCw, Download, RotateCcw, Globe } from 'lucide-react';
+import { X, Cpu, ChevronLeft, Plug, Plus, Trash2, Wrench, Check, Loader2, Brain, RefreshCw, Download, RotateCcw, Globe, Layers, Sliders } from 'lucide-react';
 import { getConfig, updateConfig, getAvailableTools, ToolInfo } from '../services/configService';
-import { getAgentConfigs, updateAgentConfig, AgentConfig } from '../services/agentConfigService';
+import { getAgentConfigs, updateAgentConfig, AgentConfig } from '../services/strategyService';
 import { getMCPServers, MCPServerConfig, MCPServerStatus, testMCPConnection, getMCPServerTools, MCPToolInfo } from '../services/mcpService';
 import { checkForUpdate, doUpdate, restartApp, getCurrentVersion, onUpdateProgress, UpdateInfo, UpdateProgress } from '../services/updateService';
+import { getStrategies, getActiveStrategyID, setActiveStrategy, deleteStrategy, generateStrategy, updateStrategy, Strategy, StrategyAgent } from '../services/strategyService';
 
 interface AIConfig {
   id: string;
@@ -42,7 +43,7 @@ interface ProxyConfig {
   customUrl: string;
 }
 
-type TabType = 'provider' | 'agent' | 'mcp' | 'memory' | 'proxy' | 'update';
+type TabType = 'provider' | 'strategy' | 'mcp' | 'memory' | 'proxy' | 'update';
 
 interface SettingsDialogProps {
   isOpen: boolean;
@@ -54,12 +55,10 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
   const [aiConfigs, setAiConfigs] = useState<AIConfig[]>([]);
   const [agentConfigs, setAgentConfigs] = useState<AgentConfig[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string>('openai');
-  const [selectedAgent, setSelectedAgent] = useState<AgentConfig | null>(null);
   const [mcpServers, setMcpServers] = useState<MCPServerConfig[]>([]);
   const [mcpStatus, setMcpStatus] = useState<Record<string, MCPServerStatus>>({});
   const [mcpTools, setMcpTools] = useState<Record<string, MCPToolInfo[]>>({});
   const [selectedMCP, setSelectedMCP] = useState<MCPServerConfig | null>(null);
-  const [availableTools, setAvailableTools] = useState<ToolInfo[]>([]);
   const [saving, setSaving] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [memoryConfig, setMemoryConfig] = useState<MemoryConfig>({
@@ -74,6 +73,8 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
     mode: 'none',
     customUrl: '',
   });
+  const [strategies, setStrategies] = useState<Strategy[]>([]);
+  const [activeStrategyId, setActiveStrategyId] = useState<string>('');
 
   // 原始配置（用于变更检测）
   const [originalConfigs, setOriginalConfigs] = useState<{
@@ -117,15 +118,18 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
     setFullConfig({
       theme: config.theme || 'military',
     });
-    // 加载可用的内置工具列表
-    const tools = await getAvailableTools();
-    setAvailableTools(tools || []);
     // 保存原始配置用于变更检测
     setOriginalConfigs({
       aiConfigs: JSON.parse(JSON.stringify(loadedAiConfigs)),
       agentConfigs: JSON.parse(JSON.stringify(loadedAgents)),
       mcpServers: JSON.parse(JSON.stringify(loadedMcps)),
     });
+
+    // 加载策略配置
+    const loadedStrategies = await getStrategies();
+    setStrategies(loadedStrategies || []);
+    const activeId = await getActiveStrategyID();
+    setActiveStrategyId(activeId);
 
     // 自动检测所有已启用的 MCP 服务器状态并获取工具列表
     const enabledMcps = loadedMcps.filter(m => m.enabled);
@@ -177,7 +181,7 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
 
   const tabs: { id: TabType; label: string; icon: React.ReactNode }[] = [
     { id: 'provider', label: '模型基座', icon: <Cpu className="h-4 w-4" /> },
-    { id: 'agent', label: 'AI专家', icon: <Bot className="h-4 w-4" /> },
+    { id: 'strategy', label: '策略管理', icon: <Layers className="h-4 w-4" /> },
     { id: 'mcp', label: 'MCP服务', icon: <Plug className="h-4 w-4" /> },
     { id: 'memory', label: '记忆管理', icon: <Brain className="h-4 w-4" /> },
     { id: 'proxy', label: '网络代理', icon: <Globe className="h-4 w-4" /> },
@@ -216,17 +220,17 @@ export const SettingsDialog: React.FC<SettingsDialogProps> = ({ isOpen, onClose 
                 onChange={setAiConfigs}
               />
             )}
-            {activeTab === 'agent' && (
-              <AgentSettings
-                agents={agentConfigs}
-                providers={aiConfigs}
-                availableTools={availableTools}
-                mcpServers={mcpServers}
-                selectedAgent={selectedAgent}
-                onSelectAgent={setSelectedAgent}
-                onUpdateAgent={(updated) => {
-                  setAgentConfigs(prev => prev.map(a => a.id === updated.id ? updated : a));
+            {activeTab === 'strategy' && (
+              <StrategySettings
+                strategies={strategies}
+                activeStrategyId={activeStrategyId}
+                onStrategiesChange={setStrategies}
+                onActiveChange={setActiveStrategyId}
+                onAgentsReload={async () => {
+                  const agents = await getAgentConfigs();
+                  setAgentConfigs(agents || []);
                 }}
+                mcpServers={mcpServers}
               />
             )}
             {activeTab === 'mcp' && (
@@ -517,354 +521,6 @@ const Footer: React.FC<FooterProps> = ({ saving, onSave, onClose }) => (
     </button>
   </div>
 );
-
-// ========== Agent 设置选项卡 ==========
-interface AgentSettingsProps {
-  agents: AgentConfig[];
-  providers: AIConfig[];
-  availableTools: ToolInfo[];
-  mcpServers: MCPServerConfig[];
-  selectedAgent: AgentConfig | null;
-  onSelectAgent: (agent: AgentConfig | null) => void;
-  onUpdateAgent: (agent: AgentConfig) => void;
-}
-
-const AgentSettings: React.FC<AgentSettingsProps> = ({
-  agents, providers, availableTools, mcpServers, selectedAgent, onSelectAgent, onUpdateAgent
-}) => {
-  // 从 agents 数组中获取最新的 selectedAgent（确保数据同步）
-  const currentAgent = selectedAgent ? agents.find(a => a.id === selectedAgent.id) || selectedAgent : null;
-
-  // 如果选中了 Agent，显示编辑表单
-  if (currentAgent) {
-    return (
-      <AgentEditForm
-        agent={currentAgent}
-        providers={providers}
-        availableTools={availableTools}
-        mcpServers={mcpServers}
-        onBack={() => onSelectAgent(null)}
-        onChange={onUpdateAgent}
-      />
-    );
-  }
-
-  // 否则显示 Agent 列表
-  return (
-    <div className="space-y-3">
-      <h3 className="text-sm font-medium text-white mb-3">Agent 列表</h3>
-      <p className="text-xs text-slate-500 mb-4">点击 Agent 可编辑其配置</p>
-      {agents.length === 0 ? (
-        <p className="text-slate-500 text-sm text-center py-8">暂无 Agent 配置</p>
-      ) : (
-        agents.map(agent => (
-          <AgentListItem
-            key={agent.id}
-            agent={agent}
-            onClick={() => onSelectAgent(agent)}
-          />
-        ))
-      )}
-    </div>
-  );
-};
-
-const AgentListItem: React.FC<{ agent: AgentConfig; onClick: () => void }> = ({ agent, onClick }) => (
-  <div
-    onClick={onClick}
-    className="flex items-center gap-3 p-3 fin-panel-soft rounded-lg hover:bg-slate-800/60 transition-colors border fin-divider cursor-pointer"
-  >
-    <div
-      className="w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0"
-      style={{ backgroundColor: agent.color + '20', color: agent.color }}
-    >
-      {agent.avatar || agent.name.charAt(0)}
-    </div>
-    <div className="flex-1 min-w-0">
-      <div className="flex items-center gap-2">
-        <span className="text-white text-sm font-medium">{agent.name}</span>
-        {agent.isBuiltin && (
-          <span className="text-xs px-1.5 py-0.5 fin-chip text-slate-400 rounded">内置</span>
-        )}
-      </div>
-      <p className="text-slate-500 text-xs truncate">{agent.role}</p>
-    </div>
-    <div className={`w-2 h-2 rounded-full ${agent.enabled ? 'bg-accent' : 'bg-slate-600'}`} />
-  </div>
-);
-
-// ========== Agent 编辑表单 ==========
-interface AgentEditFormProps {
-  agent: AgentConfig;
-  providers: AIConfig[];
-  availableTools: ToolInfo[];
-  mcpServers: MCPServerConfig[];
-  onBack: () => void;
-  onChange: (agent: AgentConfig) => void;
-}
-
-type AgentEditTab = 'basic' | 'tools';
-
-const AgentEditForm: React.FC<AgentEditFormProps> = ({
-  agent, providers, availableTools, mcpServers, onBack, onChange
-}) => {
-  const [editedAgent, setEditedAgent] = useState<AgentConfig>(agent);
-  const [activeTab, setActiveTab] = useState<AgentEditTab>('basic');
-
-  // 当 agent prop 变化时，同步更新内部状态
-  useEffect(() => {
-    setEditedAgent(agent);
-  }, [agent]);
-
-  const handleChange = (field: keyof AgentConfig, value: string | boolean | string[]) => {
-    const updated = { ...editedAgent, [field]: value };
-    setEditedAgent(updated);
-    onChange(updated);
-  };
-
-  // 切换工具选择
-  const toggleTool = (toolName: string) => {
-    const currentTools = editedAgent.tools || [];
-    const newTools = currentTools.includes(toolName)
-      ? currentTools.filter(t => t !== toolName)
-      : [...currentTools, toolName];
-    handleChange('tools', newTools);
-  };
-
-  // 切换 MCP 服务器选择
-  const toggleMCPServer = (serverId: string) => {
-    const currentServers = editedAgent.mcpServers || [];
-    const newServers = currentServers.includes(serverId)
-      ? currentServers.filter(s => s !== serverId)
-      : [...currentServers, serverId];
-    handleChange('mcpServers', newServers);
-  };
-
-  // 全选/取消全选工具
-  const toggleAllTools = () => {
-    const allToolNames = availableTools.map(t => t.name);
-    const currentTools = editedAgent.tools || [];
-    const allSelected = allToolNames.every(name => currentTools.includes(name));
-    handleChange('tools', allSelected ? [] : allToolNames);
-  };
-
-  // 全选/取消全选 MCP 服务器
-  const toggleAllMCPServers = () => {
-    const enabledServers = mcpServers.filter(s => s.enabled);
-    const allServerIds = enabledServers.map(s => s.id);
-    const currentServers = editedAgent.mcpServers || [];
-    const allSelected = allServerIds.every(id => currentServers.includes(id));
-    handleChange('mcpServers', allSelected ? [] : allServerIds);
-  };
-
-  const selectedToolsCount = (editedAgent.tools || []).length;
-  const selectedMCPCount = (editedAgent.mcpServers || []).length;
-  const enabledMCPServers = mcpServers.filter(s => s.enabled);
-
-  return (
-    <div className="space-y-4">
-      {/* 头部：返回按钮、头像、启用开关 */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onBack}
-            className="p-1.5 rounded-lg hover:bg-slate-700/60 text-slate-400 hover:text-white transition-colors"
-          >
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-          <div
-            className="w-10 h-10 rounded-full flex items-center justify-center text-lg"
-            style={{ backgroundColor: editedAgent.color + '20', color: editedAgent.color }}
-          >
-            {editedAgent.avatar || editedAgent.name.charAt(0)}
-          </div>
-          <div>
-            <h3 className="text-white font-medium">{editedAgent.name}</h3>
-            <p className="text-xs text-slate-500">{editedAgent.role}</p>
-          </div>
-        </div>
-        <button
-          onClick={() => handleChange('enabled', !editedAgent.enabled)}
-          className={`w-11 h-6 rounded-full transition-colors ${
-            editedAgent.enabled ? 'bg-gradient-to-r from-[var(--accent)] to-[var(--accent-2)]' : 'bg-slate-600'
-          }`}
-        >
-          <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${
-            editedAgent.enabled ? 'translate-x-5' : 'translate-x-0.5'
-          }`} />
-        </button>
-      </div>
-
-      {/* 标签页切换 */}
-      <div className="flex gap-1 p-1 fin-panel rounded-lg border fin-divider">
-        <button
-          onClick={() => setActiveTab('basic')}
-          className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-md transition-all ${
-            activeTab === 'basic'
-              ? 'bg-gradient-to-br from-[var(--accent)] to-[var(--accent-2)] text-white'
-              : 'text-slate-400 hover:text-white hover:bg-slate-700/60'
-          }`}
-        >
-          <Sliders className="h-4 w-4" />
-          基础配置
-        </button>
-        <button
-          onClick={() => setActiveTab('tools')}
-          className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-md transition-all ${
-            activeTab === 'tools'
-              ? 'bg-gradient-to-br from-[var(--accent)] to-[var(--accent-2)] text-white'
-              : 'text-slate-400 hover:text-white hover:bg-slate-700/60'
-          }`}
-        >
-          <Wrench className="h-4 w-4" />
-          工具配置
-          {(selectedToolsCount > 0 || selectedMCPCount > 0) && (
-            <span className="px-1.5 py-0.5 text-xs bg-white/20 rounded-full">
-              {selectedToolsCount + selectedMCPCount}
-            </span>
-          )}
-        </button>
-      </div>
-
-      {/* 基础配置标签页 */}
-      {activeTab === 'basic' && (
-        <div className="space-y-4">
-          {/* Provider 选择 */}
-          <div>
-            <label className="block text-sm text-slate-400 mb-1.5">Provider</label>
-            <select
-              value={editedAgent.providerId || ''}
-              onChange={e => handleChange('providerId', e.target.value)}
-              className="w-full fin-input rounded-lg px-3 py-2 text-white text-sm"
-            >
-              <option value="">默认基座模型</option>
-              {providers.map(p => (
-                <option key={p.id} value={p.id}>{p.name} ({p.provider}) - {p.modelName}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* 系统指令 */}
-          <div>
-            <label className="block text-sm text-slate-400 mb-1.5">系统指令 (Prompt)</label>
-            <textarea
-              value={editedAgent.instruction || ''}
-              onChange={e => handleChange('instruction', e.target.value)}
-              rows={8}
-              placeholder="定义 Agent 的行为和角色..."
-              className="w-full fin-input rounded-lg px-3 py-2 text-white text-sm resize-none"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* 工具配置标签页 */}
-      {activeTab === 'tools' && (
-        <div className="space-y-4">
-          {/* 内置工具 */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm text-slate-400 flex items-center gap-1.5">
-                <Wrench className="h-4 w-4" />
-                内置工具
-                <span className="text-xs text-slate-500">({selectedToolsCount}/{availableTools.length})</span>
-              </label>
-              {availableTools.length > 0 && (
-                <button
-                  onClick={toggleAllTools}
-                  className="text-xs text-accent-2 hover:text-accent-2 transition-colors"
-                >
-                  {availableTools.every(t => (editedAgent.tools || []).includes(t.name)) ? '取消全选' : '全选'}
-                </button>
-              )}
-            </div>
-            <div className="grid grid-cols-1 gap-2">
-              {availableTools.length === 0 ? (
-                <p className="text-slate-500 text-xs text-center py-4 fin-panel rounded-lg border fin-divider">暂无可用工具</p>
-              ) : (
-                availableTools.map(tool => {
-                  const isSelected = (editedAgent.tools || []).includes(tool.name);
-                  return (
-                    <div
-                      key={tool.name}
-                      onClick={() => toggleTool(tool.name)}
-                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                        isSelected
-                          ? 'border-accent/50 bg-accent/10'
-                          : 'border-slate-700 hover:border-slate-600 hover:bg-slate-800/40'
-                      }`}
-                    >
-                      <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 ${
-                        isSelected ? 'bg-accent text-white' : 'bg-slate-700 border border-slate-600'
-                      }`}>
-                        {isSelected && <Check className="h-3 w-3" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-white text-sm font-medium">{tool.name}</div>
-                        <div className="text-slate-500 text-xs">{tool.description}</div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-
-          {/* MCP 服务器 */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm text-slate-400 flex items-center gap-1.5">
-                <Plug className="h-4 w-4" />
-                MCP 服务器
-                <span className="text-xs text-slate-500">({selectedMCPCount}/{enabledMCPServers.length})</span>
-              </label>
-              {enabledMCPServers.length > 0 && (
-                <button
-                  onClick={toggleAllMCPServers}
-                  className="text-xs text-accent-2 hover:text-accent-2 transition-colors"
-                >
-                  {enabledMCPServers.every(s => (editedAgent.mcpServers || []).includes(s.id)) ? '取消全选' : '全选'}
-                </button>
-              )}
-            </div>
-            <div className="grid grid-cols-1 gap-2">
-              {enabledMCPServers.length === 0 ? (
-                <p className="text-slate-500 text-xs text-center py-4 fin-panel rounded-lg border fin-divider">
-                  暂无已启用的 MCP 服务器，请先在 MCP 服务标签页中配置
-                </p>
-              ) : (
-                enabledMCPServers.map(server => {
-                  const isSelected = (editedAgent.mcpServers || []).includes(server.id);
-                  return (
-                    <div
-                      key={server.id}
-                      onClick={() => toggleMCPServer(server.id)}
-                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                        isSelected
-                          ? 'border-purple-500/50 bg-purple-500/10'
-                          : 'border-slate-700 hover:border-slate-600 hover:bg-slate-800/40'
-                      }`}
-                    >
-                      <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 ${
-                        isSelected ? 'bg-purple-500 text-white' : 'bg-slate-700 border border-slate-600'
-                      }`}>
-                        {isSelected && <Check className="h-3 w-3" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-white text-sm font-medium">{server.name}</div>
-                        <div className="text-slate-500 text-xs">{server.transportType}</div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
 
 // ========== Helper functions ==========
 const getDefaultBaseUrl = (provider: string): string => {
@@ -1514,6 +1170,680 @@ const UpdateSettings: React.FC = () => {
                 style={{ width: `${progress.percent}%` }} />
             </div>
           )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ========== 策略配置选项卡 ==========
+interface StrategySettingsProps {
+  strategies: Strategy[];
+  activeStrategyId: string;
+  onStrategiesChange: (strategies: Strategy[]) => void;
+  onActiveChange: (id: string) => void;
+  onAgentsReload: () => void;
+  mcpServers: MCPServerConfig[];
+}
+
+// 视图类型
+type StrategyView = 'list' | 'agents' | 'agent-edit';
+
+const StrategySettings: React.FC<StrategySettingsProps> = ({
+  strategies, activeStrategyId, onStrategiesChange, onActiveChange, onAgentsReload, mcpServers
+}) => {
+  const [view, setView] = useState<StrategyView>('list');
+  const [selectedStrategy, setSelectedStrategy] = useState<Strategy | null>(null);
+  const [selectedAgent, setSelectedAgent] = useState<StrategyAgent | null>(null);
+  const [availableTools, setAvailableTools] = useState<ToolInfo[]>([]);
+  const [generating, setGenerating] = useState(false);
+  const [prompt, setPrompt] = useState('');
+  const [error, setError] = useState('');
+
+  // 加载可用工具
+  useEffect(() => {
+    getAvailableTools().then(setAvailableTools);
+  }, []);
+
+  // 进入策略的专家列表
+  const handleSelectStrategy = (strategy: Strategy) => {
+    setSelectedStrategy(strategy);
+    setView('agents');
+  };
+
+  // 进入专家编辑
+  const handleSelectAgent = (agent: StrategyAgent) => {
+    setSelectedAgent(agent);
+    setView('agent-edit');
+  };
+
+  // 返回策略列表
+  const handleBackToList = () => {
+    setSelectedStrategy(null);
+    setSelectedAgent(null);
+    setView('list');
+  };
+
+  // 返回专家列表
+  const handleBackToAgents = () => {
+    setSelectedAgent(null);
+    setView('agents');
+  };
+
+  // 更新策略中的专家
+  const handleUpdateAgent = async (updatedAgent: StrategyAgent) => {
+    if (!selectedStrategy) return;
+    const updatedAgents = selectedStrategy.agents.map(a =>
+      a.id === updatedAgent.id ? updatedAgent : a
+    );
+    const updatedStrategy = { ...selectedStrategy, agents: updatedAgents };
+    setSelectedStrategy(updatedStrategy);
+    setSelectedAgent(updatedAgent);
+
+    // 更新策略列表
+    const newStrategies = strategies.map(s =>
+      s.id === updatedStrategy.id ? updatedStrategy : s
+    );
+    onStrategiesChange(newStrategies);
+
+    // 保存到后端
+    await updateStrategy(updatedStrategy);
+
+    // 如果是当前激活策略，重新加载 agents
+    if (selectedStrategy.id === activeStrategyId) {
+      onAgentsReload();
+    }
+  };
+
+  const handleGenerate = async () => {
+    if (!prompt.trim()) return;
+    setGenerating(true);
+    setError('');
+    try {
+      const result = await generateStrategy(prompt);
+      if (result.success && result.strategy) {
+        onStrategiesChange([...strategies, result.strategy]);
+        setPrompt('');
+      } else {
+        setError(result.error || '生成失败');
+      }
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    const result = await deleteStrategy(id);
+    if (result === 'success') {
+      onStrategiesChange(strategies.filter(s => s.id !== id));
+    }
+  };
+
+  const handleActivate = async (id: string) => {
+    const result = await setActiveStrategy(id);
+    if (result === 'success') {
+      onActiveChange(id);
+      onAgentsReload();
+    }
+  };
+
+  // 专家编辑视图
+  if (view === 'agent-edit' && selectedStrategy && selectedAgent) {
+    return (
+      <StrategyAgentEdit
+        agent={selectedAgent}
+        strategy={selectedStrategy}
+        availableTools={availableTools}
+        mcpServers={mcpServers}
+        onBack={handleBackToAgents}
+        onChange={handleUpdateAgent}
+      />
+    );
+  }
+
+  // 专家列表视图
+  if (view === 'agents' && selectedStrategy) {
+    return (
+      <StrategyAgentList
+        strategy={selectedStrategy}
+        isActive={selectedStrategy.id === activeStrategyId}
+        onBack={handleBackToList}
+        onSelectAgent={handleSelectAgent}
+        onAgentToggle={handleUpdateAgent}
+      />
+    );
+  }
+
+  // 策略列表视图
+  return (
+    <StrategyListView
+      strategies={strategies}
+      activeStrategyId={activeStrategyId}
+      generating={generating}
+      prompt={prompt}
+      error={error}
+      onPromptChange={setPrompt}
+      onGenerate={handleGenerate}
+      onSelectStrategy={handleSelectStrategy}
+      onActivate={handleActivate}
+      onDelete={handleDelete}
+    />
+  );
+};
+
+// 策略列表项组件
+interface StrategyListItemProps {
+  strategy: Strategy;
+  isActive: boolean;
+  onSelect: () => void;
+  onActivate: () => void;
+  onDelete: () => void;
+}
+
+const StrategyListItem: React.FC<StrategyListItemProps> = ({
+  strategy, isActive, onSelect, onActivate, onDelete
+}) => {
+  const agentNames = strategy.agents?.map(a => a.name).join('、') || '无';
+  const enabledCount = strategy.agents?.filter(a => a.enabled).length || 0;
+
+  return (
+    <div
+      onClick={onSelect}
+      className={`p-3 rounded-lg border transition-all cursor-pointer ${
+        isActive ? 'border-accent/50 bg-accent/10' : 'border-slate-700 hover:border-slate-600'
+      }`}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">{strategy.icon}</span>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-white text-sm font-medium">{strategy.name}</span>
+              {strategy.isBuiltin && (
+                <span className="text-xs px-1.5 py-0.5 fin-chip text-slate-400 rounded">内置</span>
+              )}
+              {strategy.source === 'ai' && (
+                <span className="text-xs px-1.5 py-0.5 bg-purple-500/20 text-purple-400 rounded">AI</span>
+              )}
+              {isActive && (
+                <span className="text-xs px-1.5 py-0.5 bg-accent/20 text-accent-2 rounded">当前</span>
+              )}
+            </div>
+            <p className="text-slate-500 text-xs">{strategy.description}</p>
+            <p className="text-slate-600 text-xs mt-1">
+              专家: {agentNames} ({enabledCount}/{strategy.agents?.length || 0}启用)
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+          {!isActive && (
+            <button
+              onClick={onActivate}
+              className="px-2 py-1 text-xs text-accent-2 hover:bg-accent/20 rounded"
+            >
+              启用
+            </button>
+          )}
+          {!strategy.isBuiltin && !isActive && (
+            <button
+              onClick={onDelete}
+              className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/20 rounded"
+              title="删除策略"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ========== 策略列表视图 ==========
+interface StrategyListViewProps {
+  strategies: Strategy[];
+  activeStrategyId: string;
+  generating: boolean;
+  prompt: string;
+  error: string;
+  onPromptChange: (v: string) => void;
+  onGenerate: () => void;
+  onSelectStrategy: (s: Strategy) => void;
+  onActivate: (id: string) => void;
+  onDelete: (id: string) => void;
+}
+
+const StrategyListView: React.FC<StrategyListViewProps> = ({
+  strategies, activeStrategyId, generating, prompt, error,
+  onPromptChange, onGenerate, onSelectStrategy, onActivate, onDelete
+}) => (
+  <div className="space-y-6">
+    {/* AI生成策略 */}
+    <div>
+      <h3 className="text-white font-medium mb-3">✨ AI生成策略</h3>
+      <textarea
+        value={prompt}
+        onChange={(e) => onPromptChange(e.target.value)}
+        placeholder="描述你想要的投资策略..."
+        rows={3}
+        className="w-full fin-input rounded-lg px-3 py-2 text-white text-sm resize-none"
+      />
+      {error && <p className="text-red-400 text-xs mt-1">{error}</p>}
+      <button
+        onClick={onGenerate}
+        disabled={generating || !prompt.trim()}
+        className="mt-2 px-4 py-2 bg-gradient-to-br from-[var(--accent)] to-[var(--accent-2)] text-white rounded-lg text-sm disabled:opacity-50 flex items-center gap-2"
+      >
+        {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+        {generating ? '生成中...' : '生成策略'}
+      </button>
+    </div>
+
+    {/* 策略列表 */}
+    <div>
+      <h3 className="text-white font-medium mb-3">📁 策略列表</h3>
+      <p className="text-slate-500 text-xs mb-3">点击策略可查看和编辑专家配置</p>
+      <div className="space-y-2">
+        {strategies.map(s => (
+          <StrategyListItem
+            key={s.id}
+            strategy={s}
+            isActive={s.id === activeStrategyId}
+            onSelect={() => onSelectStrategy(s)}
+            onActivate={() => onActivate(s.id)}
+            onDelete={() => onDelete(s.id)}
+          />
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
+// ========== 策略专家列表视图 ==========
+interface StrategyAgentListProps {
+  strategy: Strategy;
+  isActive: boolean;
+  onBack: () => void;
+  onSelectAgent: (agent: StrategyAgent) => void;
+  onAgentToggle: (agent: StrategyAgent) => void;
+}
+
+const StrategyAgentList: React.FC<StrategyAgentListProps> = ({
+  strategy, isActive, onBack, onSelectAgent, onAgentToggle
+}) => {
+  const enabledCount = strategy.agents?.filter(a => a.enabled).length || 0;
+
+  return (
+    <div className="space-y-4">
+      {/* 头部 */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onBack}
+          className="p-1.5 rounded-lg hover:bg-slate-700/60 text-slate-400 hover:text-white transition-colors"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+        <span className="text-2xl">{strategy.icon}</span>
+        <div>
+          <div className="flex items-center gap-2">
+            <h3 className="text-white font-medium">{strategy.name}</h3>
+            {isActive && (
+              <span className="text-xs px-1.5 py-0.5 bg-accent/20 text-accent-2 rounded">当前策略</span>
+            )}
+          </div>
+          <p className="text-slate-500 text-xs">{strategy.description}</p>
+        </div>
+      </div>
+
+      {/* 专家统计 */}
+      <div className="text-sm text-slate-400">
+        共 {strategy.agents?.length || 0} 位专家，{enabledCount} 位已启用
+      </div>
+
+      {/* 专家列表 */}
+      <div className="space-y-2">
+        {strategy.agents?.map(agent => (
+          <StrategyAgentListItem
+            key={agent.id}
+            agent={agent}
+            onSelect={() => onSelectAgent(agent)}
+            onToggle={() => onAgentToggle({ ...agent, enabled: !agent.enabled })}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// 策略专家列表项
+interface StrategyAgentListItemProps {
+  agent: StrategyAgent;
+  onSelect: () => void;
+  onToggle: () => void;
+}
+
+const StrategyAgentListItem: React.FC<StrategyAgentListItemProps> = ({
+  agent, onSelect, onToggle
+}) => (
+  <div
+    onClick={onSelect}
+    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+      agent.enabled
+        ? 'border-slate-700 hover:border-slate-600'
+        : 'border-slate-800 bg-slate-800/30 opacity-60'
+    }`}
+  >
+    <div
+      className="w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0"
+      style={{ backgroundColor: agent.color + '20', color: agent.color }}
+    >
+      {agent.avatar || agent.name.charAt(0)}
+    </div>
+    <div className="flex-1 min-w-0">
+      <div className="text-white text-sm font-medium">{agent.name}</div>
+      <div className="text-slate-500 text-xs">{agent.role}</div>
+    </div>
+    <button
+      onClick={(e) => { e.stopPropagation(); onToggle(); }}
+      className={`w-10 h-5 rounded-full transition-colors ${
+        agent.enabled ? 'bg-accent' : 'bg-slate-600'
+      }`}
+    >
+      <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${
+        agent.enabled ? 'translate-x-5' : 'translate-x-0.5'
+      }`} />
+    </button>
+  </div>
+);
+
+// ========== 策略专家编辑视图 ==========
+interface StrategyAgentEditProps {
+  agent: StrategyAgent;
+  strategy: Strategy;
+  availableTools: ToolInfo[];
+  mcpServers: MCPServerConfig[];
+  onBack: () => void;
+  onChange: (agent: StrategyAgent) => void;
+}
+
+type AgentEditTab = 'basic' | 'tools';
+
+const StrategyAgentEdit: React.FC<StrategyAgentEditProps> = ({
+  agent, strategy, availableTools, mcpServers, onBack, onChange
+}) => {
+  const [editedAgent, setEditedAgent] = useState<StrategyAgent>(agent);
+  const [activeTab, setActiveTab] = useState<AgentEditTab>('basic');
+
+  useEffect(() => {
+    setEditedAgent(agent);
+  }, [agent]);
+
+  const handleChange = <K extends keyof StrategyAgent>(field: K, value: StrategyAgent[K]) => {
+    const updated = { ...editedAgent, [field]: value };
+    setEditedAgent(updated);
+    onChange(updated);
+  };
+
+  const toggleTool = (toolName: string) => {
+    const currentTools = editedAgent.tools || [];
+    const newTools = currentTools.includes(toolName)
+      ? currentTools.filter(t => t !== toolName)
+      : [...currentTools, toolName];
+    handleChange('tools', newTools);
+  };
+
+  const toggleMCPServer = (serverId: string) => {
+    const currentServers = editedAgent.mcpServers || [];
+    const newServers = currentServers.includes(serverId)
+      ? currentServers.filter(s => s !== serverId)
+      : [...currentServers, serverId];
+    handleChange('mcpServers', newServers);
+  };
+
+  const selectedToolsCount = (editedAgent.tools || []).length;
+  const selectedMCPCount = (editedAgent.mcpServers || []).length;
+
+  return (
+    <div className="space-y-4">
+      {/* 头部 */}
+      <AgentEditHeader
+        agent={editedAgent}
+        strategyName={strategy.name}
+        onBack={onBack}
+        onToggleEnabled={() => handleChange('enabled', !editedAgent.enabled)}
+      />
+
+      {/* 标签页切换 */}
+      <AgentEditTabs
+        activeTab={activeTab}
+        selectedToolsCount={selectedToolsCount}
+        selectedMCPCount={selectedMCPCount}
+        onTabChange={setActiveTab}
+      />
+
+      {/* 基础配置 */}
+      {activeTab === 'basic' && (
+        <AgentBasicConfig
+          agent={editedAgent}
+          onChange={handleChange}
+        />
+      )}
+
+      {/* 工具配置 */}
+      {activeTab === 'tools' && (
+        <AgentToolsConfig
+          agent={editedAgent}
+          availableTools={availableTools}
+          mcpServers={mcpServers}
+          onToggleTool={toggleTool}
+          onToggleMCPServer={toggleMCPServer}
+        />
+      )}
+    </div>
+  );
+};
+
+// 专家编辑头部
+interface AgentEditHeaderProps {
+  agent: StrategyAgent;
+  strategyName: string;
+  onBack: () => void;
+  onToggleEnabled: () => void;
+}
+
+const AgentEditHeader: React.FC<AgentEditHeaderProps> = ({
+  agent, strategyName, onBack, onToggleEnabled
+}) => (
+  <div className="flex items-center justify-between">
+    <div className="flex items-center gap-3">
+      <button
+        onClick={onBack}
+        className="p-1.5 rounded-lg hover:bg-slate-700/60 text-slate-400 hover:text-white transition-colors"
+      >
+        <ChevronLeft className="h-5 w-5" />
+      </button>
+      <div
+        className="w-10 h-10 rounded-full flex items-center justify-center text-lg"
+        style={{ backgroundColor: agent.color + '20', color: agent.color }}
+      >
+        {agent.avatar || agent.name.charAt(0)}
+      </div>
+      <div>
+        <h3 className="text-white font-medium">{agent.name}</h3>
+        <p className="text-xs text-slate-500">{strategyName} / {agent.role}</p>
+      </div>
+    </div>
+    <button
+      onClick={onToggleEnabled}
+      className={`w-11 h-6 rounded-full transition-colors ${
+        agent.enabled ? 'bg-accent' : 'bg-slate-600'
+      }`}
+    >
+      <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${
+        agent.enabled ? 'translate-x-5' : 'translate-x-0.5'
+      }`} />
+    </button>
+  </div>
+);
+
+// 专家编辑标签页
+interface AgentEditTabsProps {
+  activeTab: AgentEditTab;
+  selectedToolsCount: number;
+  selectedMCPCount: number;
+  onTabChange: (tab: AgentEditTab) => void;
+}
+
+const AgentEditTabs: React.FC<AgentEditTabsProps> = ({
+  activeTab, selectedToolsCount, selectedMCPCount, onTabChange
+}) => {
+  const totalCount = selectedToolsCount + selectedMCPCount;
+  return (
+    <div className="flex gap-1 p-1 fin-panel rounded-lg border fin-divider">
+      <button
+        onClick={() => onTabChange('basic')}
+        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-md transition-all ${
+          activeTab === 'basic'
+            ? 'bg-gradient-to-br from-[var(--accent)] to-[var(--accent-2)] text-white'
+            : 'text-slate-400 hover:text-white hover:bg-slate-700/60'
+        }`}
+      >
+        <Sliders className="h-4 w-4" />
+        基础配置
+      </button>
+      <button
+        onClick={() => onTabChange('tools')}
+        className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-md transition-all ${
+          activeTab === 'tools'
+            ? 'bg-gradient-to-br from-[var(--accent)] to-[var(--accent-2)] text-white'
+            : 'text-slate-400 hover:text-white hover:bg-slate-700/60'
+        }`}
+      >
+        <Wrench className="h-4 w-4" />
+        工具配置
+        {totalCount > 0 && (
+          <span className="px-1.5 py-0.5 text-xs bg-white/20 rounded-full">
+            {totalCount}
+          </span>
+        )}
+      </button>
+    </div>
+  );
+};
+
+// 专家基础配置
+interface AgentBasicConfigProps {
+  agent: StrategyAgent;
+  onChange: <K extends keyof StrategyAgent>(field: K, value: StrategyAgent[K]) => void;
+}
+
+const AgentBasicConfig: React.FC<AgentBasicConfigProps> = ({ agent, onChange }) => (
+  <div className="space-y-4">
+    <div>
+      <label className="block text-sm text-slate-400 mb-1.5">系统指令 (Prompt)</label>
+      <textarea
+        value={agent.instruction || ""}
+        onChange={e => onChange("instruction", e.target.value)}
+        rows={10}
+        placeholder="定义专家的行为和角色..."
+        className="w-full fin-input rounded-lg px-3 py-2 text-white text-sm resize-none"
+      />
+    </div>
+  </div>
+);
+
+// 专家工具配置
+interface AgentToolsConfigProps {
+  agent: StrategyAgent;
+  availableTools: ToolInfo[];
+  mcpServers: MCPServerConfig[];
+  onToggleTool: (toolName: string) => void;
+  onToggleMCPServer: (serverId: string) => void;
+}
+
+const AgentToolsConfig: React.FC<AgentToolsConfigProps> = ({
+  agent, availableTools, mcpServers, onToggleTool, onToggleMCPServer
+}) => {
+  const selectedTools = agent.tools || [];
+  const selectedMCPServers = agent.mcpServers || [];
+
+  return (
+    <div className="space-y-6">
+      {/* 内置工具 */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between mb-2">
+          <label className="text-sm text-slate-400 flex items-center gap-1.5">
+            <Wrench className="h-4 w-4" />
+            内置工具
+            <span className="text-xs text-slate-500">({selectedTools.length}/{availableTools.length})</span>
+          </label>
+        </div>
+        <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
+          {availableTools.map(tool => {
+            const isSelected = selectedTools.includes(tool.name);
+            return (
+              <div
+                key={tool.name}
+                onClick={() => onToggleTool(tool.name)}
+                className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                  isSelected
+                    ? "border-accent/50 bg-accent/10"
+                    : "border-slate-700 hover:border-slate-600 hover:bg-slate-800/40"
+                }`}
+              >
+                <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 ${
+                  isSelected ? "bg-accent text-white" : "bg-slate-700 border border-slate-600"
+                }`}>
+                  {isSelected && <Check className="h-3 w-3" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-white text-sm font-medium">{tool.name}</div>
+                  <div className="text-slate-500 text-xs">{tool.description}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* MCP 服务器 */}
+      {mcpServers.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-sm text-slate-400 flex items-center gap-1.5">
+              <Plug className="h-4 w-4" />
+              MCP 服务器
+              <span className="text-xs text-slate-500">({selectedMCPServers.length}/{mcpServers.length})</span>
+            </label>
+          </div>
+          <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
+            {mcpServers.map(server => {
+              const isSelected = selectedMCPServers.includes(server.id);
+              return (
+                <div
+                  key={server.id}
+                  onClick={() => onToggleMCPServer(server.id)}
+                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                    isSelected
+                      ? "border-purple-500/50 bg-purple-500/10"
+                      : "border-slate-700 hover:border-slate-600 hover:bg-slate-800/40"
+                  }`}
+                >
+                  <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 ${
+                    isSelected ? "bg-purple-500 text-white" : "bg-slate-700 border border-slate-600"
+                  }`}>
+                    {isSelected && <Check className="h-3 w-3" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-white text-sm font-medium">{server.name}</div>
+                    <div className="text-slate-500 text-xs truncate">{server.command} {server.args?.join(' ')}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

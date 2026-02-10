@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Stock, KLineData } from '../types';
-import { getAgentConfigs, AgentConfig } from '../services/agentConfigService';
+import { getAgentConfigs, AgentConfig } from '../services/strategyService';
 import { StockSession, ChatMessage, sendMeetingMessage, MeetingMessageRequest, getSessionMessages } from '../services/sessionService';
 import { MessageSquare, Loader2, Send, User, Users, X, Reply, Trash2, Wrench, CheckCircle2, AlertCircle, Copy, Check, RotateCcw, Pencil, Square } from 'lucide-react';
 import { clearSessionMessages } from '../services/sessionService';
@@ -103,13 +103,30 @@ export const AgentRoom: React.FC<AgentRoomProps> = ({ session, onSessionUpdate }
   };
 
   // 加载Agent配置
-  useEffect(() => {
+  const loadAgents = () => {
     getAgentConfigs()
       .then(agents => setAllAgents(agents || []))
       .catch(err => {
         console.error('[AgentRoom] 加载Agent配置失败:', err);
         setAllAgents([]);
       });
+  };
+
+  // 初始加载Agent配置
+  useEffect(() => {
+    loadAgents();
+  }, []);
+
+  // 监听策略切换事件，重新加载Agent配置
+  useEffect(() => {
+    const cleanup = EventsOn('strategy:changed', () => {
+      console.log('[AgentRoom] 策略已切换，重新加载Agent配置');
+      loadAgents();
+    });
+    return () => {
+      EventsOff('strategy:changed');
+      if (cleanup) cleanup();
+    };
   }, []);
 
   // 当Session变化时，从后端加载最新消息

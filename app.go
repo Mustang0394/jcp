@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/run-bigpig/jcp/internal/adk"
 	"github.com/run-bigpig/jcp/internal/adk/mcp"
 	"github.com/run-bigpig/jcp/internal/adk/tools"
 	"github.com/run-bigpig/jcp/internal/agent"
@@ -33,7 +34,7 @@ type App struct {
 	marketPusher       *services.MarketDataPusher
 	meetingService     *meeting.Service
 	sessionService     *services.SessionService
-	agentConfigService *services.AgentConfigService
+	strategyService    *services.StrategyService
 	agentContainer     *agent.Container
 	toolRegistry       *tools.Registry
 	mcpManager         *mcp.Manager
@@ -118,10 +119,12 @@ func NewApp() *App {
 	// 初始化Session服务
 	sessionService := services.NewSessionService(dataDir)
 
-	// 初始化Agent配置服务和容器
-	agentConfigService := services.NewAgentConfigService(dataDir)
+	// 初始化策略服务
+	strategyService := services.NewStrategyService(dataDir)
+
+	// 初始化Agent容器（直接从StrategyService获取数据）
 	agentContainer := agent.NewContainer()
-	agentContainer.LoadAgents(agentConfigService.GetAllAgents())
+	agentContainer.LoadAgents(strategyService.GetAllAgents())
 
 	// 初始化更新服务
 	updateService := services.NewUpdateService("run-bigpig", "jcp", Version)
@@ -136,7 +139,7 @@ func NewApp() *App {
 		longHuBangService:  longHuBangService,
 		meetingService:     meetingService,
 		sessionService:     sessionService,
-		agentConfigService: agentConfigService,
+		strategyService:    strategyService,
 		agentContainer:     agentContainer,
 		toolRegistry:       toolRegistry,
 		mcpManager:         mcpManager,
@@ -440,37 +443,187 @@ func (a *App) UpdateStockPosition(stockCode string, shares int64, costPrice floa
 
 // ========== Agent Config API ==========
 
-// GetAgentConfigs 获取所有Agent配置
+// GetAgentConfigs 获取所有已启用的Agent配置
 func (a *App) GetAgentConfigs() []models.AgentConfig {
-	return a.agentConfigService.GetAllAgents()
+	return a.strategyService.GetEnabledAgents()
 }
 
-// AddAgentConfig 添加Agent配置
+// AddAgentConfig 添加Agent配置到当前策略
 func (a *App) AddAgentConfig(config models.AgentConfig) string {
-	if err := a.agentConfigService.AddAgent(config); err != nil {
+	agent := models.StrategyAgent{
+		ID:          config.ID,
+		Name:        config.Name,
+		Role:        config.Role,
+		Avatar:      config.Avatar,
+		Color:       config.Color,
+		Instruction: config.Instruction,
+		Tools:       config.Tools,
+		MCPServers:  config.MCPServers,
+		Enabled:     config.Enabled,
+	}
+	if err := a.strategyService.AddAgentToActiveStrategy(agent); err != nil {
 		return err.Error()
 	}
-	// 重新加载容器
-	a.agentContainer.LoadAgents(a.agentConfigService.GetAllAgents())
+	a.agentContainer.LoadAgents(a.strategyService.GetAllAgents())
 	return "success"
 }
 
-// UpdateAgentConfig 更新Agent配置
+// UpdateAgentConfig 更新当前策略中的Agent配置
 func (a *App) UpdateAgentConfig(config models.AgentConfig) string {
-	if err := a.agentConfigService.UpdateAgent(config); err != nil {
+	agent := models.StrategyAgent{
+		ID:          config.ID,
+		Name:        config.Name,
+		Role:        config.Role,
+		Avatar:      config.Avatar,
+		Color:       config.Color,
+		Instruction: config.Instruction,
+		Tools:       config.Tools,
+		MCPServers:  config.MCPServers,
+		Enabled:     config.Enabled,
+	}
+	if err := a.strategyService.UpdateAgentInActiveStrategy(agent); err != nil {
 		return err.Error()
 	}
-	a.agentContainer.LoadAgents(a.agentConfigService.GetAllAgents())
+	a.agentContainer.LoadAgents(a.strategyService.GetAllAgents())
 	return "success"
 }
 
-// DeleteAgentConfig 删除Agent配置
+// DeleteAgentConfig 从当前策略删除Agent配置
 func (a *App) DeleteAgentConfig(id string) string {
-	if err := a.agentConfigService.DeleteAgent(id); err != nil {
+	if err := a.strategyService.DeleteAgentFromActiveStrategy(id); err != nil {
 		return err.Error()
 	}
-	a.agentContainer.LoadAgents(a.agentConfigService.GetAllAgents())
+	a.agentContainer.LoadAgents(a.strategyService.GetAllAgents())
 	return "success"
+}
+
+// ========== Strategy API ==========
+
+// GetStrategies 获取所有策略
+func (a *App) GetStrategies() []models.Strategy {
+	return a.strategyService.GetAllStrategies()
+}
+
+// GetActiveStrategyID 获取当前激活策略ID
+func (a *App) GetActiveStrategyID() string {
+	return a.strategyService.GetActiveID()
+}
+
+// SetActiveStrategy 设置当前激活策略
+func (a *App) SetActiveStrategy(id string) string {
+	if err := a.strategyService.SetActiveStrategy(id); err != nil {
+		return err.Error()
+	}
+	// 重新加载Agent容器
+	a.agentContainer.LoadAgents(a.strategyService.GetAllAgents())
+	// 通知前端策略已切换
+	runtime.EventsEmit(a.ctx, "strategy:changed", id)
+	return "success"
+}
+
+// AddStrategy 添加策略
+func (a *App) AddStrategy(strategy models.Strategy) string {
+	if err := a.strategyService.AddStrategy(strategy); err != nil {
+		return err.Error()
+	}
+	return "success"
+}
+
+// UpdateStrategy 更新策略
+func (a *App) UpdateStrategy(strategy models.Strategy) string {
+	if err := a.strategyService.UpdateStrategy(strategy); err != nil {
+		return err.Error()
+	}
+	return "success"
+}
+
+// DeleteStrategy 删除策略
+func (a *App) DeleteStrategy(id string) string {
+	if err := a.strategyService.DeleteStrategy(id); err != nil {
+		return err.Error()
+	}
+	return "success"
+}
+
+// GenerateStrategyRequest AI生成策略请求
+type GenerateStrategyRequest struct {
+	Prompt string `json:"prompt"`
+}
+
+// GenerateStrategyResponse AI生成策略响应
+type GenerateStrategyResponse struct {
+	Success   bool             `json:"success"`
+	Error     string           `json:"error,omitempty"`
+	Strategy  models.Strategy  `json:"strategy,omitempty"`
+	Reasoning string           `json:"reasoning,omitempty"`
+}
+
+// GenerateStrategy AI生成策略
+func (a *App) GenerateStrategy(req GenerateStrategyRequest) GenerateStrategyResponse {
+	// 获取默认AI配置
+	config := a.configService.GetConfig()
+	var aiConfig *models.AIConfig
+	for i := range config.AIConfigs {
+		if config.AIConfigs[i].ID == config.DefaultAIID {
+			aiConfig = &config.AIConfigs[i]
+			break
+		}
+	}
+	if aiConfig == nil && len(config.AIConfigs) > 0 {
+		aiConfig = &config.AIConfigs[0]
+	}
+	if aiConfig == nil {
+		return GenerateStrategyResponse{Success: false, Error: "未配置AI服务"}
+	}
+
+	// 创建LLM
+	ctx := context.Background()
+	factory := adk.NewModelFactory()
+	llm, err := factory.CreateModel(ctx, aiConfig)
+	if err != nil {
+		return GenerateStrategyResponse{Success: false, Error: err.Error()}
+	}
+
+	// 构建生成输入
+	input := services.GenerateInput{
+		Prompt: req.Prompt,
+	}
+
+	// 获取可用工具列表
+	for _, t := range a.toolRegistry.GetAllToolInfos() {
+		input.Tools = append(input.Tools, services.ToolInfoForGen{
+			Name:        t.Name,
+			Description: t.Description,
+		})
+	}
+
+	// 获取已启用的MCP服务器列表
+	for _, m := range config.MCPServers {
+		if m.Enabled {
+			input.MCPServers = append(input.MCPServers, services.MCPInfoForGen{
+				ID:   m.ID,
+				Name: m.Name,
+			})
+		}
+	}
+
+	// 设置LLM并生成策略
+	a.strategyService.SetLLM(llm)
+	result, err := a.strategyService.Generate(ctx, input)
+	if err != nil {
+		return GenerateStrategyResponse{Success: false, Error: err.Error()}
+	}
+
+	// 保存策略
+	if err := a.strategyService.AddStrategy(result.Strategy); err != nil {
+		return GenerateStrategyResponse{Success: false, Error: err.Error()}
+	}
+
+	return GenerateStrategyResponse{
+		Success:   true,
+		Strategy:  result.Strategy,
+		Reasoning: result.Reasoning,
+	}
 }
 
 // ========== Meeting Room API ==========
@@ -565,7 +718,7 @@ func (a *App) SendMeetingMessage(req MeetingMessageRequest) []models.ChatMessage
 
 // runSmartMeeting 智能会议模式
 func (a *App) runSmartMeeting(ctx context.Context, stockCode string, stock models.Stock, query string, aiConfig *models.AIConfig, position *models.StockPosition) []models.ChatMessage {
-	allAgents := a.agentConfigService.GetAllAgents()
+	allAgents := a.strategyService.GetEnabledAgents()
 	chatReq := meeting.ChatRequest{
 		Stock:     stock,
 		Query:     query,
@@ -615,7 +768,7 @@ func (a *App) runSmartMeeting(ctx context.Context, stockCode string, stock model
 
 // runDirectMeeting 直接 @ 指定专家模式（带事件推送）
 func (a *App) runDirectMeeting(ctx context.Context, req MeetingMessageRequest, stock models.Stock, aiConfig *models.AIConfig, position *models.StockPosition) []models.ChatMessage {
-	agentConfigs := a.agentConfigService.GetAgentsByIDs(req.MentionIds)
+	agentConfigs := a.strategyService.GetAgentsByIDs(req.MentionIds)
 	if len(agentConfigs) == 0 {
 		return []models.ChatMessage{}
 	}
