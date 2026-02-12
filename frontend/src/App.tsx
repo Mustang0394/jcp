@@ -106,6 +106,14 @@ const App: React.FC = () => {
     }
   }, []);
 
+  // 处理K线数据更新（来自后端推送）
+  const handleKLineUpdate = useCallback((data: { code: string; period: string; data: KLineData[] }) => {
+    // 只更新当前选中股票和周期的K线数据
+    if (data && data.code === selectedSymbol && data.period === timePeriod) {
+      setKLineData(data.data);
+    }
+  }, [selectedSymbol, timePeriod]);
+
   // 保存布局配置（防抖）
   const saveLayoutConfig = useCallback(async (
     left: number, right: number, bottom: number,
@@ -206,12 +214,13 @@ const App: React.FC = () => {
   };
 
   // 使用市场事件 Hook
-  const { subscribeOrderBook } = useMarketEvents({
+  const { subscribeOrderBook, subscribeKLine } = useMarketEvents({
     onStockUpdate: handleStockUpdate,
     onOrderBookUpdate: handleOrderBookUpdate,
     onTelegraphUpdate: handleTelegraphUpdate,
     onMarketStatusUpdate: handleMarketStatusUpdate,
     onMarketIndicesUpdate: handleMarketIndicesUpdate,
+    onKLineUpdate: handleKLineUpdate,
   });
 
   // Handle Adding Stock
@@ -308,6 +317,8 @@ const App: React.FC = () => {
     if (!selectedSymbol) return;
     // 切换时先清空数据，避免闪烁
     setKLineData([]);
+    // 订阅K线推送
+    subscribeKLine(selectedSymbol, timePeriod);
     const loadKLineData = async () => {
       // 分时图需要更多数据点（1分钟K线，一天约240根）
       const dataLen = timePeriod === '1m' ? 250 : 60;
@@ -315,7 +326,7 @@ const App: React.FC = () => {
       setKLineData(data);
     };
     loadKLineData();
-  }, [selectedSymbol, timePeriod]);
+  }, [selectedSymbol, timePeriod, subscribeKLine]);
 
   // 初始化窗口最大化状态
   useEffect(() => {
