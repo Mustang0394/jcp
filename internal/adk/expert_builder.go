@@ -130,6 +130,16 @@ func (b *ExpertAgentBuilder) buildInstructionWithContext(config *models.AgentCon
 当前时间: %s
 市场状态: %s
 
+## 工具调用规范
+当你需要调用工具时，必须通过系统提供的标准 function call 机制进行调用。
+禁止在回复文本中输出任何自定义的工具调用标签，包括但不限于：
+- <tool_call>、</tool_call>
+- <tool_call_begin>、</tool_call_end>
+- <invoke>、</invoke>
+- <tool>、</tool>
+- 任何类似 <xxx:tool_call> 格式的标签
+直接使用 API 提供的 tool_calls 功能，不要在文本中模拟工具调用。
+
 股票: %s (%s)
 当前价格: %.2f
 涨跌幅: %.2f%%

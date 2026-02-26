@@ -80,6 +80,9 @@ type MarketDataPusher struct {
 	ctrlMu    sync.Mutex
 	ready     bool        // 前端是否已准备好
 	readyChan chan struct{} // 前端准备好信号
+
+	// 防止 runParallel 重入堆积
+	pushMu sync.Mutex
 }
 
 // NewMarketDataPusher 创建市场数据推送服务
@@ -276,17 +279,25 @@ func (p *MarketDataPusher) pushLoop() {
 }
 
 // runParallel 带超时的并行执行，防止协程堆积
+// 使用 TryLock 防止重入：上一轮未完成则跳过本轮
 func (p *MarketDataPusher) runParallel(timeout time.Duration, fns ...func()) {
+	if !p.pushMu.TryLock() {
+		// 上一轮推送还未完成，跳过本轮避免 goroutine 堆积
+		return
+	}
+	defer p.pushMu.Unlock()
+
+	var wg sync.WaitGroup
+	wg.Add(len(fns))
+	for _, fn := range fns {
+		go func(f func()) {
+			defer wg.Done()
+			safeCall(f)
+		}(fn)
+	}
+
 	done := make(chan struct{})
 	go func() {
-		var wg sync.WaitGroup
-		wg.Add(len(fns))
-		for _, fn := range fns {
-			go func(f func()) {
-				defer wg.Done()
-				safeCall(f)
-			}(fn)
-		}
 		wg.Wait()
 		close(done)
 	}()
@@ -294,7 +305,9 @@ func (p *MarketDataPusher) runParallel(timeout time.Duration, fns ...func()) {
 	select {
 	case <-done:
 	case <-time.After(timeout):
-		pusherLog.Warn("推送超时，部分任务未完成")
+		pusherLog.Warn("推送超时，等待任务结束")
+		// 超时后仍等待 goroutine 结束，避免泄漏
+		<-done
 	}
 }
 

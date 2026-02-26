@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { GetTradingSchedule } from '@wailsjs/go/main/App';
 
 // 交易时段
@@ -100,19 +100,39 @@ export function useMarketStatus() {
     fetchScheduleWithRetry();
   }, [fetchScheduleWithRetry]);
 
-  // 每秒更新状态
+  // 用 ref 记录上次状态，避免值不变时触发无效渲染
+  const lastStatusKeyRef = useRef<string>('');
+
+  // 定时更新状态（值不变则跳过 setState）
   useEffect(() => {
     if (!schedule) return;
 
+    const update = () => {
+      const newStatus = calculateStatus(schedule);
+      const key = `${newStatus.status}:${newStatus.statusText}`;
+      if (key !== lastStatusKeyRef.current) {
+        lastStatusKeyRef.current = key;
+        setStatus(newStatus);
+      }
+    };
+
     // 立即计算一次
-    setStatus(calculateStatus(schedule));
+    update();
 
-    // 每秒更新
-    const timer = setInterval(() => {
-      setStatus(calculateStatus(schedule));
-    }, 1000);
+    // 交易时段 1 秒刷新，非交易时段 60 秒刷新
+    const getInterval = () => {
+      const s = lastStatusKeyRef.current.split(':')[0];
+      return (s === 'trading' || s === 'pre_market') ? 1000 : 60000;
+    };
 
-    return () => clearInterval(timer);
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      update();
+      timer = setTimeout(tick, getInterval());
+    };
+    timer = setTimeout(tick, getInterval());
+
+    return () => clearTimeout(timer);
   }, [schedule]);
 
   // 每天0点刷新时间表（处理跨天）

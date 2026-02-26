@@ -99,7 +99,7 @@ func (m *Moderator) buildAnalyzePrompt(stock *models.Stock, query string, agents
 	}
 	sb.WriteString("\n## 你的任务\n")
 	sb.WriteString("1. 分析老韭菜问题的核心意图\n")
-	sb.WriteString("2. 选择 1-3 位最相关的专家\n")
+	sb.WriteString("2. 除非用户特别约束专家数量,否则选择 1-4 位最相关的专家\n")
 	sb.WriteString("3. 生成讨论议题和开场白\n\n")
 	sb.WriteString("## 输出格式（仅输出JSON）\n")
 	sb.WriteString(`{"intent":"意图","selected":["id1"],"topic":"议题","opening":"开场白"}`)

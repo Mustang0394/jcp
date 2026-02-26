@@ -25,6 +25,10 @@ var paramRegex = regexp.MustCompile(`(?s)<parameter\s+name="([^"]+)">(.*?)</para
 var toolCallBeginRegex = regexp.MustCompile(`(?s)<tool_call_begin>\s*(\w+)\s*(.*?)\s*</tool_call_end>`)
 var paramAltRegex = regexp.MustCompile(`(?s)<param\s+name="([^"]+)">(.*?)</param>`)
 
+// 格式3: <tool_call> <tool name="xxx"> <param name="yyy">zzz</param> </tool> </tool_call>
+var toolCallWrapRegex = regexp.MustCompile(`(?s)<tool_call>\s*(.*?)\s*</tool_call>`)
+var toolTagRegex = regexp.MustCompile(`(?s)<tool\s+name="([^"]+)">\s*(.*?)\s*</tool>`)
+
 // VendorToolCall 第三方工具调用解析结果
 type VendorToolCall struct {
 	Name string
@@ -121,6 +125,43 @@ func parseVendorToolCalls(text string) ([]VendorToolCall, string) {
 			Name: toolName,
 			Args: args,
 		})
+
+		// 从文本中移除已解析的工具调用块
+		cleanedText = strings.Replace(cleanedText, match[0], "", 1)
+	}
+
+	// 格式3: <tool_call> <tool name="xxx"> <param name="yyy">zzz</param> </tool> </tool_call>
+	wrapMatches := toolCallWrapRegex.FindAllStringSubmatch(cleanedText, -1)
+	for _, match := range wrapMatches {
+		if len(match) < 2 {
+			continue
+		}
+		innerContent := match[1]
+
+		// 解析多个 tool 标签
+		toolMatches := toolTagRegex.FindAllStringSubmatch(innerContent, -1)
+		for _, toolMatch := range toolMatches {
+			if len(toolMatch) < 3 {
+				continue
+			}
+			toolName := toolMatch[1]
+			paramsContent := toolMatch[2]
+
+			// 解析参数
+			args := make(map[string]any)
+			paramMatches := paramAltRegex.FindAllStringSubmatch(paramsContent, -1)
+			for _, paramMatch := range paramMatches {
+				if len(paramMatch) >= 3 {
+					val := strings.Trim(paramMatch[2], "\"")
+					args[paramMatch[1]] = val
+				}
+			}
+
+			toolCalls = append(toolCalls, VendorToolCall{
+				Name: toolName,
+				Args: args,
+			})
+		}
 
 		// 从文本中移除已解析的工具调用块
 		cleanedText = strings.Replace(cleanedText, match[0], "", 1)

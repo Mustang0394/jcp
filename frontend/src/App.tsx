@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { StockList } from './components/StockList';
-import { StockChart } from './components/StockChart';
+import { StockChartLW } from './components/StockChartLW';
 import { OrderBook as OrderBookComponent } from './components/OrderBook';
 import { AgentRoom } from './components/AgentRoom';
 import { SettingsDialog } from './components/SettingsDialog';
@@ -552,7 +552,7 @@ const App: React.FC = () => {
           <div className="flex-1 flex flex-col min-h-0">
              {/* Chart Section */}
             <div className="flex-1 p-1 relative min-h-0">
-               <StockChart
+               <StockChartLW
                   data={kLineData}
                   period={timePeriod}
                   onPeriodChange={setTimePeriod}

@@ -1553,9 +1553,12 @@ const OpenClawSettings: React.FC<OpenClawSettingsProps> = ({ config, onChange })
       });
     };
     fetchStatus();
-    const timer = setInterval(fetchStatus, 500);
-    return () => clearInterval(timer);
-  }, [config.enabled]);
+    // 仅在切换中时高频轮询，同步后停止
+    if (switching) {
+      const timer = setInterval(fetchStatus, 500);
+      return () => clearInterval(timer);
+    }
+  }, [config.enabled, switching]);
 
   const handleToggle = () => {
     if (switching) return;
