@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/run-bigpig/jcp/internal/adk/openai"
 	"github.com/run-bigpig/jcp/internal/models"
 
 	"google.golang.org/adk/model"
@@ -85,8 +84,7 @@ func (m *Moderator) generate(ctx context.Context, prompt string) (string, error)
 			}
 		}
 	}
-	cleaned := openai.FilterVendorToolCallMarkers(result.String())
-	cleaned = strings.TrimSpace(cleaned)
+	cleaned := strings.TrimSpace(result.String())
 	if cleaned == "" {
 		return "", ErrEmptyAgentReply
 	}
