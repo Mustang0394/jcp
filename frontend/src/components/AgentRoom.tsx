@@ -1158,14 +1158,25 @@ export const AgentRoom: React.FC<AgentRoomProps> = ({ session, onSessionUpdate }
   };
 
   return (
-    <div className="relative flex flex-col h-full">
+    <div className="relative flex flex-col h-full agent-shell">
       {/* Header */}
-      <div className="p-4 border-b fin-divider-soft">
-        <div className="flex items-center justify-between">
+      <div className="p-5 border-b fin-divider-soft agent-header">
+        <div className="flex items-start justify-between gap-4">
+          <div>
           <h2 className={`text-lg font-bold flex items-center gap-2 ${colors.isDark ? 'text-white' : 'text-slate-800'}`}>
             <Users style={{ color: 'var(--accent)' }} />
             韭菜讨论中心
           </h2>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] ${colors.isDark ? 'border-slate-700 text-slate-300 bg-slate-900/40' : 'border-slate-300 text-slate-600 bg-white/70'}`}>
+                <span className="h-2 w-2 rounded-full bg-amber-400" />
+                主持人先组织，再沉淀结论
+              </span>
+              <span className={`text-[11px] ${colors.isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+                当前消息 {messages.length} 条
+              </span>
+            </div>
+          </div>
           <button
             onClick={handleClearMessages}
             disabled={isSimulating || messages.length === 0}
@@ -1175,13 +1186,13 @@ export const AgentRoom: React.FC<AgentRoomProps> = ({ session, onSessionUpdate }
             <Trash2 size={16} />
           </button>
         </div>
-        <p className={`text-xs mt-1 ${colors.isDark ? 'text-slate-400' : 'text-slate-500'}`}>@韭菜提问，引用观点深入讨论</p>
+        <p className={`text-xs mt-3 ${colors.isDark ? 'text-slate-400' : 'text-slate-500'}`}>直接提问由小韭菜安排专家，@ 可以指定角色继续深挖</p>
       </div>
 
       {/* Chat Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 fin-scrollbar" ref={scrollRef}>
+      <div className="flex-1 overflow-y-auto space-y-5 fin-scrollbar agent-chat-scroll" ref={scrollRef}>
         {messages.length === 0 && (
-          <div className={`h-full flex flex-col items-center justify-center text-sm p-8 text-center opacity-60 ${colors.isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+          <div className={`h-full flex flex-col items-center justify-center text-sm p-8 text-center opacity-75 agent-empty-state ${colors.isDark ? 'text-slate-500' : 'text-slate-400'}`}>
             <MessageSquare size={32} className="mb-2" />
             <p>直接提问或 @ 选择韭菜专家</p>
             <p className={`text-xs mt-1 ${colors.isDark ? 'text-slate-600' : 'text-slate-400'}`}>不@任何人时，小韭菜会自动安排韭菜专家讨论</p>
@@ -1230,7 +1241,7 @@ export const AgentRoom: React.FC<AgentRoomProps> = ({ session, onSessionUpdate }
                         <span className="line-clamp-1">{quotedMsg.content}</span>
                       </div>
                     )}
-                    <div className="inline-block text-left text-sm text-white bg-gradient-to-br from-[var(--accent)] to-[var(--accent-2)] p-3 rounded-2xl rounded-tr-none shadow-sm">
+                    <div className="inline-block text-left text-sm text-white bg-gradient-to-br from-[var(--accent)] to-[var(--accent-2)] px-4 py-3.5 rounded-[22px] rounded-tr-md shadow-sm agent-user-card">
                       {msg.content}
                     </div>
                     {/* 失败时显示重试/编辑按钮 */}
@@ -1278,7 +1289,7 @@ export const AgentRoom: React.FC<AgentRoomProps> = ({ session, onSessionUpdate }
                     </span>
                   </div>
                   <div className="relative">
-                    <div className={`text-sm p-3 rounded-2xl rounded-tl-none leading-relaxed shadow-sm agent-message-content moderator-message-content ${
+                    <div className={`text-sm px-4 py-4 rounded-[24px] rounded-tl-md leading-relaxed shadow-sm agent-message-content moderator-message-content agent-summary-card ${
                       isSummary
                         ? (colors.isDark ? 'bg-gradient-to-br from-amber-900/40 to-orange-900/30 border border-amber-500/30 text-amber-100' : 'bg-gradient-to-br from-amber-100 to-orange-100 border border-amber-400/30 text-amber-900')
                         : (colors.isDark ? 'bg-slate-800/70 border border-amber-500/20 text-slate-200' : 'bg-slate-100 border border-amber-400/20 text-slate-700')
@@ -1313,7 +1324,7 @@ export const AgentRoom: React.FC<AgentRoomProps> = ({ session, onSessionUpdate }
                   <span className={`text-[9px] uppercase border fin-divider px-1 rounded fin-chip ${colors.isDark ? 'text-slate-500' : 'text-slate-400'}`}>{msg.role || agent?.role}</span>
                 </div>
                 <div className="relative">
-                  <div className={`text-sm p-3 rounded-2xl rounded-tl-none leading-relaxed shadow-sm agent-message-content expert-message-content ${colors.isDark ? 'text-slate-200 bg-slate-800/70 border border-slate-700/40' : 'text-slate-700 bg-white border border-slate-200'}`}>
+                  <div className={`text-sm px-4 py-3.5 rounded-[22px] rounded-tl-md leading-relaxed shadow-sm agent-message-content expert-message-content agent-expert-card ${colors.isDark ? 'text-slate-200 bg-slate-800/70 border border-slate-700/40' : 'text-slate-700 bg-white border border-slate-200'}`}>
                     {renderAgentContent(msg.content)}
                   </div>
                   {/* 操作按钮组 */}
@@ -1341,7 +1352,7 @@ export const AgentRoom: React.FC<AgentRoomProps> = ({ session, onSessionUpdate }
         })}
         {/* 进度显示 */}
         {isSimulating && (
-          <div className={`mx-4 p-3 fin-panel-soft rounded-xl border animate-in fade-in duration-300 ${colors.isDark ? 'border-slate-700/50' : 'border-slate-300/50'}`}>
+          <div className={`mx-1 p-4 fin-panel-soft rounded-[22px] border animate-in fade-in duration-300 ${colors.isDark ? 'border-slate-700/50' : 'border-slate-300/50'}`}>
             {progress.currentAgent ? (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
@@ -1384,7 +1395,8 @@ export const AgentRoom: React.FC<AgentRoomProps> = ({ session, onSessionUpdate }
       </div>
 
       {/* Input Area */}
-      <div className="p-3 border-t fin-divider-soft shrink-0">
+      <div className="p-4 border-t fin-divider-soft shrink-0 agent-composer">
+        <div className="agent-composer-shell p-3.5">
         {/* 引用预览 */}
         {replyToMessage && (
           <div className={`flex items-center gap-2 mb-2 p-2 rounded-lg border-l-2 border-accent ${colors.isDark ? 'bg-slate-800/50' : 'bg-slate-100'}`}>
@@ -1463,7 +1475,7 @@ export const AgentRoom: React.FC<AgentRoomProps> = ({ session, onSessionUpdate }
           )}
 
           {/* 输入框 */}
-          <form onSubmit={handleSubmit} className="flex gap-2">
+          <form onSubmit={handleSubmit} className="flex gap-2 items-end">
             <input
                ref={inputRef}
                type="text"
@@ -1472,7 +1484,7 @@ export const AgentRoom: React.FC<AgentRoomProps> = ({ session, onSessionUpdate }
                onKeyDown={handleKeyDown}
                disabled={isSimulating}
                placeholder="直接提问或输入 @ 选择韭菜专家..."
-               className="flex-1 fin-input rounded-lg px-4 py-2 text-sm placeholder-slate-500 border fin-divider"
+               className="flex-1 fin-input rounded-[18px] px-4 py-3 text-sm placeholder-slate-500 border fin-divider"
             />
             {isSimulating ? (
               <button
@@ -1497,6 +1509,7 @@ export const AgentRoom: React.FC<AgentRoomProps> = ({ session, onSessionUpdate }
         </div>
         <div className="mt-1 text-center">
           <span className={`text-[10px] ${colors.isDark ? 'text-slate-600' : 'text-slate-400'}`}>直接提问由小韭菜安排韭菜专家，@ 可指定韭菜专家</span>
+        </div>
         </div>
       </div>
 

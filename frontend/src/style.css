@@ -479,6 +479,718 @@
         z-index: 80;
     }
 
+    .app-shell {
+        position: relative;
+    }
+
+    .app-shell::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background:
+            radial-gradient(circle at 16% 14%, color-mix(in srgb, var(--accent-2) 10%, transparent), transparent 24%),
+            radial-gradient(circle at 88% 18%, color-mix(in srgb, #f59e0b 8%, transparent), transparent 22%);
+        opacity: 0.9;
+    }
+
+    .app-surface {
+        border: 1px solid color-mix(in srgb, var(--stroke) 92%, transparent);
+        border-radius: 26px;
+        background:
+            linear-gradient(180deg, color-mix(in srgb, var(--panel-strong) 92%, transparent), color-mix(in srgb, var(--panel) 96%, transparent));
+        box-shadow:
+            0 22px 48px color-mix(in srgb, var(--shadow-strong) 80%, transparent),
+            inset 0 1px 0 color-mix(in srgb, white 6%, transparent);
+        backdrop-filter: blur(18px);
+        -webkit-backdrop-filter: blur(18px);
+    }
+
+    .app-sidebar-shell {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .app-sidebar-shell::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 8%, transparent), transparent 18%);
+        opacity: 0.9;
+    }
+
+    .app-main-shell {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .app-main-shell::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background:
+            linear-gradient(135deg, color-mix(in srgb, var(--accent) 8%, transparent), transparent 26%),
+            radial-gradient(circle at 82% 0%, color-mix(in srgb, var(--accent-2) 10%, transparent), transparent 32%);
+        opacity: 0.95;
+    }
+
+    .workspace-shell {
+        position: relative;
+        min-height: 0;
+    }
+
+    .workspace-pane {
+        min-height: 0;
+        min-width: 0;
+    }
+
+    .workspace-focusbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.95rem 1rem;
+    }
+
+    .workspace-focusbar-copy {
+        min-width: 0;
+    }
+
+    .workspace-focusbar-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.28rem;
+        border-radius: 999px;
+        border: 1px solid color-mix(in srgb, var(--stroke) 76%, transparent);
+        background: color-mix(in srgb, var(--panel-soft) 72%, transparent);
+    }
+
+    .workspace-focus-button {
+        min-width: 4.6rem;
+        padding: 0.5rem 0.95rem;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        font-size: 0.76rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+    }
+
+    .workspace-focus-button:hover {
+        transform: translateY(-1px);
+    }
+
+    .workspace-wide {
+        display: flex;
+    }
+
+    .workspace-compact,
+    .workspace-stacked {
+        display: grid;
+        align-items: stretch;
+    }
+
+    .workspace-compact {
+        grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr) minmax(320px, 38%);
+    }
+
+    .workspace-compact .workspace-left {
+        grid-column: 1;
+        grid-row: 1 / span 2;
+        width: auto !important;
+    }
+
+    .workspace-compact .workspace-center {
+        grid-column: 2;
+        grid-row: 1;
+    }
+
+    .workspace-compact .workspace-right {
+        grid-column: 2;
+        grid-row: 2;
+        width: auto !important;
+    }
+
+    .workspace-stacked {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: minmax(220px, 26%) minmax(0, 1fr) minmax(280px, 34%);
+    }
+
+    .workspace-stacked .workspace-left,
+    .workspace-stacked .workspace-right {
+        width: auto !important;
+    }
+
+    .workspace-stacked .workspace-left {
+        grid-column: 1;
+        grid-row: 1;
+    }
+
+    .workspace-stacked .workspace-center {
+        grid-column: 1;
+        grid-row: 2;
+    }
+
+    .workspace-stacked .workspace-right {
+        grid-column: 1;
+        grid-row: 3;
+    }
+
+    .workspace-compact .workspace-pane-focus {
+        grid-column: 1 / -1 !important;
+        grid-row: 1 / -1 !important;
+        width: auto !important;
+    }
+
+    .workspace-stacked .workspace-pane-focus {
+        grid-column: 1 !important;
+        grid-row: 1 / -1 !important;
+        width: auto !important;
+    }
+
+    .market-strip {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.85rem;
+        padding: 1rem 1.25rem 1.15rem;
+    }
+
+    .market-overview-card {
+        position: relative;
+        overflow: hidden;
+        min-height: 100%;
+        padding: 0.9rem 1rem 0.95rem;
+        border-radius: 18px;
+        border: 1px solid color-mix(in srgb, var(--stroke) 80%, transparent);
+        background:
+            linear-gradient(180deg, color-mix(in srgb, var(--panel-soft) 72%, transparent), color-mix(in srgb, var(--panel) 94%, transparent));
+        box-shadow:
+            inset 0 1px 0 color-mix(in srgb, white 5%, transparent),
+            0 10px 24px color-mix(in srgb, var(--shadow) 55%, transparent);
+    }
+
+    .market-overview-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, transparent), transparent 48%);
+        opacity: 0.85;
+    }
+
+    .market-overview-grid {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        gap: 0.55rem 0.85rem;
+    }
+
+    .market-overview-grid.quote,
+    .market-overview-grid.deal {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .market-overview-grid.capital {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .market-overview-item {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.65rem;
+        min-width: 0;
+    }
+
+    .market-overview-label {
+        font-size: 0.68rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: color-mix(in srgb, var(--text-2) 82%, transparent);
+    }
+
+    .market-overview-value {
+        min-width: 0;
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: var(--text-0);
+        text-align: right;
+    }
+
+    .market-overview-title {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 0.85rem;
+    }
+
+    .market-overview-heading {
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: color-mix(in srgb, var(--text-1) 88%, transparent);
+    }
+
+    .market-overview-note {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.18rem 0.55rem;
+        border-radius: 999px;
+        font-size: 0.66rem;
+        color: color-mix(in srgb, var(--text-1) 78%, transparent);
+        border: 1px solid color-mix(in srgb, var(--stroke) 72%, transparent);
+        background: color-mix(in srgb, var(--panel-soft) 70%, transparent);
+    }
+
+    .fin-view-switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.28rem;
+        border-radius: 999px;
+        border: 1px solid color-mix(in srgb, var(--stroke) 76%, transparent);
+        background: color-mix(in srgb, var(--panel-soft) 72%, transparent);
+    }
+
+    .fin-view-switch button {
+        min-width: 5.75rem;
+        padding: 0.45rem 0.9rem;
+        border-radius: 999px;
+        font-size: 0.76rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+    }
+
+    .chart-stage {
+        padding: 1rem 1rem 1.15rem;
+    }
+
+    .bottom-stage {
+        padding: 0.85rem 1rem 1rem;
+    }
+
+    .agent-shell {
+        position: relative;
+    }
+
+    .agent-shell::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 9%, transparent), transparent 16%);
+        opacity: 0.85;
+    }
+
+    .agent-header,
+    .agent-composer {
+        position: relative;
+        z-index: 1;
+    }
+
+    .agent-chat-scroll {
+        position: relative;
+        z-index: 1;
+        padding: 1.2rem 1.15rem 1.35rem;
+    }
+
+    .agent-empty-state {
+        min-height: 100%;
+        border: 1px dashed color-mix(in srgb, var(--stroke-strong) 86%, transparent);
+        border-radius: 22px;
+        background: color-mix(in srgb, var(--panel-soft) 62%, transparent);
+    }
+
+    .agent-summary-card {
+        box-shadow:
+            0 14px 28px color-mix(in srgb, var(--shadow) 48%, transparent),
+            inset 0 1px 0 color-mix(in srgb, white 6%, transparent);
+    }
+
+    .agent-expert-card,
+    .agent-user-card {
+        box-shadow:
+            0 10px 22px color-mix(in srgb, var(--shadow) 38%, transparent),
+            inset 0 1px 0 color-mix(in srgb, white 4%, transparent);
+    }
+
+    .agent-composer-shell {
+        border-radius: 22px;
+        border: 1px solid color-mix(in srgb, var(--stroke) 80%, transparent);
+        background:
+            linear-gradient(180deg, color-mix(in srgb, var(--panel-soft) 78%, transparent), color-mix(in srgb, var(--panel) 96%, transparent));
+        box-shadow: inset 0 1px 0 color-mix(in srgb, white 5%, transparent);
+    }
+
+    .f10-shell {
+        position: relative;
+    }
+
+    .f10-shell::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background:
+            radial-gradient(circle at 92% 4%, color-mix(in srgb, var(--accent-2) 9%, transparent), transparent 24%),
+            linear-gradient(180deg, color-mix(in srgb, var(--accent) 8%, transparent), transparent 14%);
+        opacity: 0.9;
+    }
+
+    .f10-header {
+        position: relative;
+        z-index: 1;
+        padding: 1rem 1.15rem 0.9rem;
+    }
+
+    .f10-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-top: 0.75rem;
+    }
+
+    .f10-meta span {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.25rem 0.65rem;
+        border-radius: 999px;
+        border: 1px solid color-mix(in srgb, var(--stroke) 70%, transparent);
+        background: color-mix(in srgb, var(--panel-soft) 68%, transparent);
+        color: color-mix(in srgb, var(--text-1) 85%, transparent);
+    }
+
+    .f10-tab-strip {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        gap: 0.55rem;
+        overflow-x: auto;
+        padding: 0.15rem 1.15rem 1rem;
+        scrollbar-width: none;
+    }
+
+    .f10-tab-strip::-webkit-scrollbar {
+        display: none;
+    }
+
+    .f10-tab {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+        min-height: 2.2rem;
+        padding: 0 0.95rem;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        background: color-mix(in srgb, var(--panel-soft) 42%, transparent);
+        color: color-mix(in srgb, var(--text-1) 90%, transparent);
+        transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+    }
+
+    .f10-tab:hover {
+        transform: translateY(-1px);
+        border-color: color-mix(in srgb, var(--stroke) 82%, transparent);
+        color: var(--text-0);
+    }
+
+    .f10-tab.active {
+        border-color: color-mix(in srgb, var(--accent) 58%, transparent);
+        background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 20%, transparent), color-mix(in srgb, var(--accent-2) 16%, transparent));
+        color: color-mix(in srgb, white 92%, transparent);
+        box-shadow: 0 10px 22px color-mix(in srgb, var(--shadow) 38%, transparent);
+    }
+
+    .f10-scroll {
+        position: relative;
+        z-index: 1;
+        padding: 0 1.15rem 1.3rem;
+    }
+
+    .f10-card {
+        border-radius: 22px;
+        border: 1px solid color-mix(in srgb, var(--stroke) 82%, transparent);
+        background:
+            linear-gradient(180deg, color-mix(in srgb, var(--panel-soft) 58%, transparent), color-mix(in srgb, var(--panel) 96%, transparent));
+        box-shadow:
+            inset 0 1px 0 color-mix(in srgb, white 5%, transparent),
+            0 14px 28px color-mix(in srgb, var(--shadow) 34%, transparent);
+    }
+
+    .f10-card-hero {
+        border-radius: 26px;
+        padding: 1.15rem 1.2rem;
+        background:
+            radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--accent-2) 10%, transparent), transparent 26%),
+            linear-gradient(180deg, color-mix(in srgb, var(--panel-strong) 94%, transparent), color-mix(in srgb, var(--panel) 98%, transparent));
+    }
+
+    .f10-subcard {
+        border-radius: 18px;
+        border: 1px solid color-mix(in srgb, var(--stroke) 72%, transparent);
+        background:
+            linear-gradient(180deg, color-mix(in srgb, var(--panel-soft) 44%, transparent), color-mix(in srgb, var(--panel) 90%, transparent));
+        box-shadow:
+            inset 0 1px 0 color-mix(in srgb, white 4%, transparent),
+            0 10px 22px color-mix(in srgb, var(--shadow) 24%, transparent);
+    }
+
+    .f10-token {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.38rem 0.78rem;
+        border-radius: 999px;
+        border: 1px solid color-mix(in srgb, var(--stroke) 76%, transparent);
+        background: color-mix(in srgb, var(--panel-soft) 72%, transparent);
+        color: color-mix(in srgb, var(--text-1) 92%, transparent);
+        font-size: 0.72rem;
+        line-height: 1;
+    }
+
+    .f10-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+    }
+
+    .f10-toolbar button {
+        padding: 0.5rem 0.9rem;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        font-size: 0.74rem;
+        line-height: 1;
+        transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+    }
+
+    .f10-toolbar button:hover {
+        transform: translateY(-1px);
+    }
+
+    .f10-table-card {
+        border-radius: 22px;
+        border: 1px solid color-mix(in srgb, var(--stroke) 80%, transparent);
+        background:
+            linear-gradient(180deg, color-mix(in srgb, var(--panel-soft) 48%, transparent), color-mix(in srgb, var(--panel) 96%, transparent));
+        box-shadow:
+            inset 0 1px 0 color-mix(in srgb, white 5%, transparent),
+            0 12px 24px color-mix(in srgb, var(--shadow) 26%, transparent);
+    }
+
+    .f10-table-card > .f10-table-title {
+        margin-bottom: 0.8rem;
+        color: color-mix(in srgb, var(--text-1) 92%, transparent);
+    }
+
+    /* F10 历史区块兼容样式，统一旧卡片与旧筛选按钮的视觉节奏 */
+    .f10-shell [class*="rounded border border-slate-700/60 px-3 py-2"] {
+        border-radius: 22px;
+        border-color: color-mix(in srgb, var(--stroke) 80%, transparent);
+        background:
+            linear-gradient(180deg, color-mix(in srgb, var(--panel-soft) 48%, transparent), color-mix(in srgb, var(--panel) 96%, transparent));
+        box-shadow:
+            inset 0 1px 0 color-mix(in srgb, white 5%, transparent),
+            0 12px 24px color-mix(in srgb, var(--shadow) 24%, transparent);
+    }
+
+    .f10-shell [class*="rounded border border-slate-700/40 px-2 py-1.5"] {
+        border-radius: 18px;
+        border-color: color-mix(in srgb, var(--stroke) 72%, transparent);
+        background:
+            linear-gradient(180deg, color-mix(in srgb, var(--panel-soft) 42%, transparent), color-mix(in srgb, var(--panel) 88%, transparent));
+        box-shadow:
+            inset 0 1px 0 color-mix(in srgb, white 4%, transparent),
+            0 10px 20px color-mix(in srgb, var(--shadow) 18%, transparent);
+    }
+
+    .f10-shell button[class*="px-2 py-1 rounded border text-xs"],
+    .f10-shell button[class*="px-2 py-1 rounded border text-[11px]"] {
+        padding: 0.5rem 0.9rem;
+        border-radius: 999px;
+        font-size: 0.74rem;
+        line-height: 1;
+        transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+    }
+
+    .f10-shell button[class*="px-2 py-1 rounded border text-xs"]:hover,
+    .f10-shell button[class*="px-2 py-1 rounded border text-[11px]"]:hover {
+        transform: translateY(-1px);
+    }
+
+    .f10-shell [class*="rounded border border-slate-700/60 px-3 py-2"] table th,
+    .f10-shell [class*="rounded border border-slate-700/60 px-3 py-2"] table td {
+        padding-top: 0.48rem;
+        padding-bottom: 0.48rem;
+    }
+
+    .f10-table-shell table {
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .f10-table-shell th {
+        position: sticky;
+        top: 0;
+        background: color-mix(in srgb, var(--panel-strong) 94%, transparent);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+    }
+
+    .f10-table-shell th,
+    .f10-table-shell td {
+        padding-top: 0.42rem;
+        padding-bottom: 0.42rem;
+    }
+
+    .f10-table-shell tr:last-child td {
+        border-bottom: none;
+    }
+
+    .workspace-compact .workspace-stock-header-inner,
+    .workspace-stacked .workspace-stock-header-inner,
+    .workspace-compact .workspace-viewbar,
+    .workspace-stacked .workspace-viewbar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .workspace-compact .workspace-stock-header-inner > :last-child,
+    .workspace-stacked .workspace-stock-header-inner > :last-child {
+        align-items: flex-start;
+    }
+
+    .workspace-compact .workspace-viewbar .fin-view-switch,
+    .workspace-stacked .workspace-viewbar .fin-view-switch {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .workspace-compact .workspace-viewbar .fin-view-switch button,
+    .workspace-stacked .workspace-viewbar .fin-view-switch button {
+        flex: 1 1 0;
+    }
+
+    .workspace-stacked .workspace-stock-header {
+        padding: 1.2rem 1.1rem 1rem;
+    }
+
+    .workspace-stacked .workspace-viewbar {
+        padding: 0.95rem 1.1rem 0.95rem;
+    }
+
+    .workspace-stacked .market-strip {
+        padding: 0.85rem 0.95rem 1rem;
+    }
+
+    .workspace-stacked .chart-stage,
+    .workspace-stacked .bottom-stage {
+        padding-left: 0.85rem;
+        padding-right: 0.85rem;
+    }
+
+    .workspace-stacked .workspace-focusbar,
+    .workspace-compact .workspace-focusbar {
+        grid-column: 1 / -1;
+    }
+
+    @media (max-width: 1280px) {
+        .market-strip {
+            grid-template-columns: 1fr;
+        }
+
+        .f10-header {
+            padding: 0.9rem 0.95rem 0.8rem;
+        }
+
+        .f10-tab-strip {
+            padding: 0.1rem 0.95rem 0.85rem;
+        }
+
+        .f10-scroll {
+            padding: 0 0.95rem 1rem;
+        }
+
+        .market-overview-grid.quote,
+        .market-overview-grid.deal,
+        .market-overview-grid.capital {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 768px) {
+        .app-surface {
+            border-radius: 20px;
+        }
+
+        .workspace-shell {
+            padding-left: 0.65rem;
+            padding-right: 0.65rem;
+            padding-bottom: 0.65rem;
+            gap: 0.65rem;
+        }
+
+        .workspace-stacked {
+            grid-template-rows: minmax(200px, 24%) minmax(0, 1fr) minmax(240px, 30%);
+        }
+
+        .workspace-focusbar {
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 0.85rem 0.9rem;
+        }
+
+        .workspace-focusbar-actions {
+            width: 100%;
+            justify-content: space-between;
+        }
+
+        .workspace-focus-button {
+            flex: 1 1 0;
+            min-width: 0;
+        }
+
+        .market-overview-grid.quote,
+        .market-overview-grid.deal,
+        .market-overview-grid.capital {
+            grid-template-columns: 1fr;
+        }
+
+        .agent-chat-scroll,
+        .f10-scroll {
+            padding-left: 0.9rem;
+            padding-right: 0.9rem;
+        }
+
+        .f10-header {
+            padding-left: 0.9rem;
+            padding-right: 0.9rem;
+        }
+
+        .f10-tab-strip {
+            padding-left: 0.9rem;
+            padding-right: 0.9rem;
+        }
+
+        .f10-meta {
+            gap: 0.35rem;
+        }
+
+        .f10-token {
+            padding: 0.34rem 0.68rem;
+        }
+    }
+
     /* 主题色工具类 */
     .text-accent { color: var(--accent); }
     .text-accent-2 { color: var(--accent-2); }

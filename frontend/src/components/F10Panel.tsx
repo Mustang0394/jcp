@@ -94,47 +94,51 @@ const F10Panel: React.FC<F10PanelProps> = ({ overview, loading, error, onRefresh
   }, [overview]);
 
   return (
-    <div className="h-full flex flex-col text-left">
-    <div className="flex items-center justify-between px-3 py-2 border-b fin-divider">
-      <div>
-        <div className="text-sm font-semibold text-slate-200">F10 全景数据</div>
-        <div className="text-xs text-slate-500 flex flex-wrap gap-x-2">
-          <span>{overview?.code ? `股票: ${overview.code}` : '暂无股票'}</span>
-          {overview?.updatedAt && <span>更新: {extractDateOnly(overview.updatedAt) || overview.updatedAt}</span>}
-          {overview?.source && <span>来源: {overview.source}</span>}
+    <div className="h-full flex flex-col text-left f10-shell">
+      <div className="f10-header border-b fin-divider-soft">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="text-[11px] uppercase tracking-[0.22em] text-slate-500">研究视图</div>
+            <div className="mt-2 text-base font-semibold text-slate-100">F10 全景数据</div>
+            <div className="mt-1 text-xs text-slate-400">先看摘要，再逐层下钻到财务、题材、资金与股东结构。</div>
+            <div className="f10-meta text-xs">
+              <span>{overview?.code ? `股票 ${overview.code}` : '暂无股票'}</span>
+              {overview?.updatedAt && <span>更新 {extractDateOnly(overview.updatedAt) || overview.updatedAt}</span>}
+              {overview?.source && <span>来源 {overview.source}</span>}
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onRefresh}
+              className="flex items-center gap-1 rounded-full border border-slate-700/70 bg-slate-900/40 px-3 py-2 text-xs text-slate-300 hover:text-accent-2 transition-colors"
+              title="刷新F10数据"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              刷新
+            </button>
+            {onCollapse && (
+              <button
+                onClick={onCollapse}
+                className="flex items-center gap-1 rounded-full border border-slate-700/70 bg-slate-900/40 px-3 py-2 text-xs text-slate-300 hover:text-white transition-colors"
+                title="收起F10"
+              >
+                <ChevronDown className="h-4 w-4" />
+                收起
+              </button>
+            )}
+          </div>
         </div>
       </div>
-      <div className="flex items-center gap-2">
-        <button
-          onClick={onRefresh}
-          className="flex items-center gap-1 text-xs text-slate-400 hover:text-accent-2 transition-colors"
-          title="刷新F10数据"
-        >
-          <RefreshCw className="h-3.5 w-3.5" />
-          刷新
-        </button>
-        {onCollapse && (
-          <button
-            onClick={onCollapse}
-            className="flex items-center gap-1 text-xs text-slate-400 hover:text-white transition-colors"
-            title="收起F10"
-          >
-            <ChevronDown className="h-4 w-4" />
-            收起
-          </button>
-        )}
-      </div>
-    </div>
 
-      <div className="flex flex-wrap gap-2 px-3 py-2 border-b fin-divider text-xs">
+      <div className="f10-tab-strip border-b fin-divider-soft text-xs">
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-2 py-1 rounded border transition-colors ${
+            className={`f10-tab transition-colors ${
               activeTab === tab.id
-                ? 'border-accent text-accent-2 bg-accent/10'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
+                ? 'active'
+                : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             {tab.label}
@@ -142,13 +146,13 @@ const F10Panel: React.FC<F10PanelProps> = ({ overview, loading, error, onRefresh
         ))}
       </div>
 
-      <div className="flex-1 overflow-y-auto fin-scrollbar px-3 py-3 text-xs">
+      <div className="flex-1 overflow-y-auto fin-scrollbar f10-scroll text-xs">
         {loading ? (
           <div className="text-slate-500">F10 数据加载中...</div>
         ) : (
           <>
             {(error || overviewErrors.length > 0) && (
-              <div className="mb-3 rounded border border-orange-500/30 bg-orange-500/10 px-3 py-2 text-orange-200">
+              <div className="mb-3 rounded-[22px] border border-orange-500/30 bg-orange-500/10 px-4 py-3 text-orange-200">
                 <div className="flex items-center gap-2 font-medium">
                   <AlertTriangle className="h-4 w-4" />
                   数据获取提示
@@ -218,26 +222,26 @@ const renderOverview = (overview?: F10Overview | null) => {
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {highlights.length > 0 && (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {highlights.map(item => (
-            <div key={item.label} className="rounded border border-slate-700/60 px-2 py-1.5 flex justify-between gap-2">
-              <span className="text-slate-500 truncate">{item.label}</span>
-              <span className="text-slate-200 text-right">{item.value}</span>
+            <div key={item.label} className="f10-card px-4 py-3 flex flex-col gap-1.5">
+              <span className="text-[11px] uppercase tracking-[0.18em] text-slate-500 truncate">{item.label}</span>
+              <span className="text-slate-100 text-sm leading-6 break-words">{item.value}</span>
             </div>
           ))}
         </div>
       )}
       {profile && (
-        <div className="rounded border border-slate-700/60 px-3 py-2">
-          <div className="text-slate-400 mb-1">公司简介</div>
+        <div className="f10-card f10-card-hero">
+          <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 mb-2">公司简介</div>
           <div className="text-slate-200 leading-relaxed whitespace-pre-wrap break-words">{profile}</div>
         </div>
       )}
       {scope && (
-        <div className="rounded border border-slate-700/60 px-3 py-2">
-          <div className="text-slate-400 mb-1">主营业务</div>
+        <div className="f10-card px-4 py-4">
+          <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 mb-2">主营业务</div>
           <div className="text-slate-200 leading-relaxed whitespace-pre-wrap break-words">{scope}</div>
         </div>
       )}
@@ -553,17 +557,17 @@ const renderRelatedStocks = (relatedStocks?: F10RelatedStocks, industry?: Indust
         { label: '净利同比', keys: ['PARENTNETPROFITTZ'] },
       ], '暂无同行业个股排名数据', 12)}
       {(top3.length > 0 || top6.length > 0 || top12.length > 0) && (
-        <div className="rounded border border-slate-700/60 px-3 py-2">
-          <div className="text-slate-400 mb-2">3/6/12日涨幅最大</div>
+        <div className="f10-card px-4 py-4">
+          <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 mb-3">3 / 6 / 12 日强势股</div>
           <div className="grid grid-cols-3 gap-3">
             {[
               { title: '3日涨幅最大', rows: top3, key: 'Change3' },
               { title: '6日涨幅最大', rows: top6, key: 'Change6' },
               { title: '12日涨幅最大', rows: top12, key: 'Change12' },
             ].map(group => (
-              <div key={group.title} className="rounded border border-slate-700/40 px-2 py-1.5">
-                <div className="text-slate-500 mb-1">{group.title}</div>
-                <div className="space-y-1">
+              <div key={group.title} className="f10-subcard px-3 py-3">
+                <div className="text-[11px] uppercase tracking-[0.16em] text-slate-500 mb-2">{group.title}</div>
+                <div className="space-y-1.5">
                   {group.rows.slice(0, 12).map((row, idx) => (
                     <div key={`${group.title}-${idx}`} className="grid grid-cols-[56px_1fr_56px] gap-2 text-xs">
                       <span className="text-slate-400">{formatValue(findValue(row, ['SECURITY_CODE']))}</span>
@@ -578,11 +582,11 @@ const renderRelatedStocks = (relatedStocks?: F10RelatedStocks, industry?: Indust
         </div>
       )}
       {industry?.peers?.length ? (
-        <div className="rounded border border-slate-700/60 px-3 py-2">
-          <div className="text-slate-400 mb-2">同业公司</div>
+        <div className="f10-card px-4 py-4">
+          <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 mb-3">同业公司</div>
           <div className="flex flex-wrap gap-2">
             {industry.peers.slice(0, 16).map(peer => (
-              <span key={peer.symbol} className="px-2 py-1 rounded fin-chip text-slate-300">
+              <span key={peer.symbol} className="f10-token">
                 {peer.name}
               </span>
             ))}
@@ -637,20 +641,20 @@ const renderInstitutionForecast = (records?: Record<string, any>[]) => {
   };
 
   return (
-    <div className="rounded border border-slate-700/60 px-3 py-2">
-      <div className="text-slate-400 mb-2">机构预测</div>
-      <div className="grid grid-cols-[160px_repeat(4,minmax(120px,1fr))] gap-x-3 text-xs text-slate-500 pb-2 border-b border-slate-700/60">
+    <div className="f10-table-card px-4 py-4">
+      <div className="f10-table-title text-[11px] uppercase tracking-[0.18em]">机构预测</div>
+      <div className="grid grid-cols-[160px_repeat(4,minmax(120px,1fr))] gap-x-3 text-xs text-slate-500 pb-3 border-b border-slate-700/60">
         <div>机构名称 / 发布日</div>
         {yearLabels.map(label => (
           <div key={label} className="text-right">{label}</div>
         ))}
       </div>
-      <div className="divide-y divide-slate-700/50 text-xs">
+      <div className="divide-y divide-slate-700/50 text-xs mt-2">
         {rows.map((row, idx) => {
           const org = formatValue(findValue(row, ['ORG_NAME_ABBR', 'ORG_NAME', 'ORG']) || '--');
           const date = formatValue(findValue(row, ['PUBLISH_DATE', 'NOTICE_DATE', 'REPORT_DATE']) || '');
           return (
-            <div key={`${org}-${idx}`} className="grid grid-cols-[160px_repeat(4,minmax(120px,1fr))] gap-x-3 py-2">
+            <div key={`${org}-${idx}`} className="grid grid-cols-[160px_repeat(4,minmax(120px,1fr))] gap-x-3 py-3">
               <div className="text-slate-200">
                 <div className="truncate">{org}</div>
                 {date && date !== '--' && <div className="text-slate-500">{date}</div>}
@@ -677,10 +681,10 @@ const renderForecastChart = (records?: Record<string, any>[]) => {
   if (rows.length === 0) return null;
 
   return (
-    <div className="rounded border border-slate-700/60 px-3 py-2">
-      <div className="text-slate-400 mb-1">盈利预测（年度）</div>
-      <div className="text-[11px] text-slate-500 mb-2">说明: 这是机构一致预期的年度指标，不是走势图。重点看 EPS、PE 和净利润的年度变化。</div>
-      <div className="overflow-x-auto">
+    <div className="f10-table-card px-4 py-4">
+      <div className="f10-table-title text-[11px] uppercase tracking-[0.18em]">盈利预测年度视图</div>
+      <div className="text-[11px] text-slate-500 mb-3">这是机构一致预期的年度指标，不是走势图。重点看 EPS、PE 和净利润的年度变化。</div>
+      <div className="overflow-x-auto f10-table-shell">
         <table className="min-w-[980px] w-full text-xs">
           <thead>
             <tr className="text-slate-500 border-b border-slate-700/60">
@@ -753,18 +757,18 @@ const renderResearchReports = (records?: Record<string, any>[]) => {
     .join(' / ');
 
   return (
-    <div className="rounded border border-slate-700/60 px-3 py-2">
-      <div className="text-slate-400 mb-2">机构研报（公开）</div>
+    <div className="f10-card px-4 py-4">
+      <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 mb-3">机构研报</div>
       <div className="grid grid-cols-3 gap-2 mb-2 text-slate-200">
-        <div className="rounded border border-slate-700/60 px-2 py-1">
+        <div className="f10-subcard px-3 py-3">
           <div className="text-slate-500">覆盖机构数</div>
           <div>{formatValue(orgSet.size)}</div>
         </div>
-        <div className="rounded border border-slate-700/60 px-2 py-1">
+        <div className="f10-subcard px-3 py-3">
           <div className="text-slate-500">近30天研报数</div>
           <div>{formatValue(recent30d)}</div>
         </div>
-        <div className="rounded border border-slate-700/60 px-2 py-1">
+        <div className="f10-subcard px-3 py-3">
           <div className="text-slate-500">样本总量</div>
           <div>{formatValue(rows.length)}</div>
         </div>
@@ -782,7 +786,7 @@ const renderResearchReports = (records?: Record<string, any>[]) => {
           const epsNext = formatValue(findValue(item, ['predictNextYearEps', 'PREDICT_NEXT_YEAR_EPS']) || '--');
 
           return (
-            <div key={`${title}-${idx}`} className="rounded border border-slate-700/40 px-2 py-1.5">
+            <div key={`${title}-${idx}`} className="f10-subcard px-3 py-3">
               <div className="text-slate-100 line-clamp-1">{title}</div>
               <div className="text-slate-500 mt-1">{org} · {date} · {rating}</div>
               <div className="text-slate-400 mt-1">EPS: 当年 {epsThis} / 次年 {epsNext}</div>
@@ -838,8 +842,8 @@ const renderForecastRevisionTrack = (records?: Record<string, any>[]) => {
   const hiddenCount = rows.length - displayRows.length;
 
   return (
-    <div className="rounded border border-slate-700/60 px-3 py-2">
-      <div className="text-slate-400 mb-2">一致预期修正轨迹</div>
+    <div className="f10-table-card px-4 py-4">
+      <div className="f10-table-title text-[11px] uppercase tracking-[0.18em]">一致预期修正轨迹</div>
       {hiddenCount > 0 && (
         <div className="text-[11px] text-slate-500 mb-2">
           已隐藏 {hiddenCount} 条缺少预测字段的记录（上游未提供 EPS/PE）。
@@ -1086,10 +1090,10 @@ const renderThemeExtras = (extras: ReturnType<typeof buildCoreThemeExtras>) => {
   const { reasons, leaders } = extras;
   if (reasons.length === 0 && leaders.length === 0) return null;
   return (
-    <div className="rounded border border-slate-700/60 px-3 py-2 space-y-2">
+    <div className="f10-card px-4 py-4 space-y-4">
       {reasons.length > 0 && (
         <div>
-          <div className="text-slate-400 mb-1">入选理由</div>
+          <div className="text-[11px] uppercase tracking-[0.16em] text-slate-500 mb-2">入选理由</div>
           <ul className="space-y-1 text-slate-200">
             {reasons.slice(0, 2).map((reason, idx) => (
               <li key={idx} className="leading-relaxed">{reason}</li>
@@ -1099,7 +1103,7 @@ const renderThemeExtras = (extras: ReturnType<typeof buildCoreThemeExtras>) => {
       )}
       {leaders.length > 0 && (
         <div>
-          <div className="text-slate-400 mb-1">人气龙头</div>
+          <div className="text-[11px] uppercase tracking-[0.16em] text-slate-500 mb-2">人气龙头</div>
           <div className="flex flex-wrap gap-2">
             {leaders.slice(0, 6).map(leader => {
               const changeText = leader.change !== undefined ? formatMetricValue(leader.change, 'signedPercent') : '';
@@ -1112,7 +1116,7 @@ const renderThemeExtras = (extras: ReturnType<typeof buildCoreThemeExtras>) => {
               return (
                 <span
                   key={leader.name}
-                  className="inline-flex items-center gap-1 rounded-full border border-slate-700/60 px-2 py-0.5 text-slate-200"
+                  className="f10-token text-slate-200"
                 >
                   <span>{leader.name}</span>
                   {changeText && <span className={changeColor}>{changeText}</span>}
@@ -1129,8 +1133,8 @@ const renderThemeExtras = (extras: ReturnType<typeof buildCoreThemeExtras>) => {
 const renderThemeTags = (title: string, tags: ThemeTag[]) => {
   if (tags.length === 0) return null;
   return (
-    <div className="rounded border border-slate-700/60 px-3 py-2">
-      <div className="text-slate-400 mb-2">{title}</div>
+    <div className="f10-card px-4 py-4">
+      <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 mb-3">{title}</div>
       <div className="flex flex-wrap gap-2">
         {tags.slice(0, 8).map(tag => {
           const change = tag.change;
@@ -1144,7 +1148,7 @@ const renderThemeTags = (title: string, tags: ThemeTag[]) => {
           return (
             <span
               key={tag.name}
-              className="inline-flex items-center gap-1 rounded-full border border-slate-700/60 px-2 py-0.5 text-slate-200"
+              className="f10-token text-slate-200"
             >
               <span>{tag.name}</span>
               {changeText && <span className={changeColor}>{changeText}</span>}
@@ -1171,10 +1175,10 @@ const renderCoreThemes = (themes?: F10CoreThemes, operations?: F10OperationsRequ
       {renderThemeTags('概念题材', tags)}
       {renderThemeExtras(extras)}
       {hasIndustry && (
-        <div className="rounded border border-slate-700/60 px-3 py-2">
-          <div className="text-slate-400 mb-2">行业信息</div>
+        <div className="f10-card px-4 py-4">
+          <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 mb-3">行业信息</div>
           {industry?.industry && (
-            <div className="mb-2">
+            <div className="mb-3">
               <div className="text-slate-500">所属行业</div>
               <div className="text-slate-200">{industry.industry}</div>
             </div>
@@ -1184,7 +1188,7 @@ const renderCoreThemes = (themes?: F10CoreThemes, operations?: F10OperationsRequ
               <div className="text-slate-500 mb-1">同业公司</div>
               <div className="flex flex-wrap gap-2">
                 {industry.peers.slice(0, 12).map(peer => (
-                  <span key={peer.symbol} className="px-2 py-1 rounded fin-chip text-slate-300">
+                  <span key={peer.symbol} className="f10-token">
                     {peer.name}
                   </span>
                 ))}
@@ -1265,9 +1269,9 @@ const renderMainIndicators = (indicators?: F10MainIndicators) => {
     const gridTemplateColumns = `180px repeat(${Math.max(displayRows.length, 1)}, minmax(96px, 1fr))`;
 
     return (
-      <div className="rounded border border-slate-700/60 px-3 py-2">
-        <div className="text-slate-400 mb-2">{title}（共{displayRows.length}期）</div>
-        <div className="overflow-x-auto">
+      <div className="f10-table-card px-4 py-4">
+        <div className="f10-table-title text-[11px] uppercase tracking-[0.18em]">{title}（共{displayRows.length}期）</div>
+        <div className="overflow-x-auto f10-table-shell">
           <div className="min-w-max">
             <div className="grid gap-2 text-[11px] text-slate-500" style={{ gridTemplateColumns }}>
               <span>指标</span>
@@ -1344,8 +1348,8 @@ const renderIndustryMetrics = (metrics?: F10IndustryCompareMetrics) => {
     } as React.CSSProperties;
 
     return (
-      <div className="rounded border border-slate-700/60 px-3 py-2">
-        <div className="text-slate-400">{title}</div>
+      <div className="f10-table-card px-4 py-4">
+        <div className="f10-table-title text-[11px] uppercase tracking-[0.18em]">{title}</div>
         {reportDate && reportDate !== '--' && (
           <div className="text-[11px] text-slate-500 mb-2">报告期: {reportDate}</div>
         )}
@@ -1569,7 +1573,7 @@ const renderValuationTrend = (trend?: F10ValuationTrend, showIntro: boolean = tr
         </svg>
         {hoverPoint && hoverX !== null && hoverY !== null && (
           <div
-            className="pointer-events-none absolute rounded border border-slate-700/60 bg-slate-900/90 px-2 py-1 text-[11px] text-slate-200 shadow"
+            className="pointer-events-none absolute f10-subcard bg-slate-900/90 px-3 py-2 text-[11px] text-slate-200 shadow"
             style={{
               left: `${(hoverX / width) * 100}%`,
               top: `${(hoverY / height) * 100}%`,
@@ -1597,8 +1601,8 @@ const renderValuationTrend = (trend?: F10ValuationTrend, showIntro: boolean = tr
         const seriesPoints = buildSeriesPoints(block.data, 240);
         if (seriesPoints.length === 0) return null;
         return (
-          <div key={block.key} className="rounded border border-slate-700/60 px-3 py-2">
-            <div className="text-slate-400 mb-2">{block.label}</div>
+          <div key={block.key} className="f10-table-card px-4 py-4">
+            <div className="f10-table-title text-[11px] uppercase tracking-[0.18em]">{block.label}</div>
             <MiniLineChart points={seriesPoints} label={block.label} />
           </div>
         );
@@ -1667,9 +1671,9 @@ const renderCashflowDerivedMetrics = (financials?: FinancialStatements, mainIndi
   ];
 
   return (
-    <div className="rounded border border-slate-700/60 px-3 py-2">
-      <div className="text-slate-400 mb-2">现金流质量（衍生）</div>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+    <div className="f10-card px-4 py-4">
+      <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 mb-3">现金流质量</div>
+      <div className="grid grid-cols-2 gap-x-5 gap-y-2">
         {rows.map(item => (
           <div key={item.label} className="flex items-center justify-between gap-2">
             <span className="text-slate-500">{item.label}</span>
@@ -2196,7 +2200,7 @@ const renderFinancials = (
     <button
       key={tab}
       onClick={() => controls.onSubTabChange(tab)}
-      className={`px-2 py-1 rounded border text-xs transition-colors ${
+      className={`${
         controls.subTab === tab
           ? 'border-accent text-accent-2 bg-accent/10'
           : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -2208,7 +2212,7 @@ const renderFinancials = (
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap gap-2">
+      <div className="f10-toolbar">
         {renderSubTabButton('mainIndicators', '主要指标')}
         {renderSubTabButton('statements', '财务报表')}
         {renderSubTabButton('percentStatements', '百分比报表')}
@@ -2217,47 +2221,52 @@ const renderFinancials = (
       {controls.subTab === 'mainIndicators' && renderMainIndicators(mainIndicators)}
 
       {(controls.subTab === 'statements' || controls.subTab === 'percentStatements') && (
-        <div className="rounded border border-slate-700/60 px-3 py-2 space-y-2">
+        <div className="f10-card px-4 py-4 space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-slate-500">报表类型:</span>
+            <div className="f10-toolbar">
             {(['income', 'balance', 'cashflow'] as FinancialStatementType[]).map(item => (
               <button
                 key={item}
                 onClick={() => controls.onStatementTypeChange(item)}
-                className={`px-2 py-1 rounded border text-xs transition-colors ${
+                className={`${
                   controls.statementType === item
                     ? 'border-accent text-accent-2 bg-accent/10'
                     : 'border-transparent text-slate-400 hover:text-slate-200'
                 }`}
-              >
-                {statementLabelMap[item]}
-              </button>
-            ))}
+                >
+                  {statementLabelMap[item]}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-slate-500">报告筛选:</span>
+            <div className="f10-toolbar">
             {(['all', 'year', 'q3', 'half', 'q1'] as FinancialReportFilter[]).map(item => (
               <button
                 key={item}
                 onClick={() => controls.onReportFilterChange(item)}
-                className={`px-2 py-1 rounded border text-xs transition-colors ${
+                className={`${
                   controls.reportFilter === item
                     ? 'border-accent text-accent-2 bg-accent/10'
                     : 'border-transparent text-slate-400 hover:text-slate-200'
                 }`}
-              >
-                {reportFilterLabels[item]}
-              </button>
-            ))}
+                >
+                  {reportFilterLabels[item]}
+                </button>
+              ))}
+            </div>
           </div>
           {controls.subTab === 'statements' && controls.statementType !== 'balance' && (
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-slate-500">口径:</span>
+              <div className="f10-toolbar">
               {(['report', 'singleQuarter'] as FinancialViewMode[]).map(item => (
                 <button
                   key={item}
                   onClick={() => controls.onViewModeChange(item)}
-                  className={`px-2 py-1 rounded border text-xs transition-colors ${
+                  className={`${
                     controls.viewMode === item
                       ? 'border-accent text-accent-2 bg-accent/10'
                       : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -2266,6 +2275,7 @@ const renderFinancials = (
                   {item === 'report' ? '按报告期' : '按单季度'}
                 </button>
               ))}
+              </div>
             </div>
           )}
         </div>
@@ -2339,11 +2349,11 @@ const renderPerformance = (performance?: PerformanceEvents) => {
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {forecastRows.length > 0 && (
-        <div className="rounded border border-slate-700/60 px-3 py-2">
-          <div className="text-slate-400 mb-2">业绩预告</div>
-          <div className="overflow-x-auto">
+        <div className="f10-table-card px-4 py-4">
+          <div className="f10-table-title text-[11px] uppercase tracking-[0.18em]">业绩预告</div>
+          <div className="overflow-x-auto f10-table-shell">
             <table className="min-w-[1120px] w-full text-xs">
               <thead>
                 <tr className="text-slate-500 border-b border-slate-700/60">
@@ -2373,9 +2383,9 @@ const renderPerformance = (performance?: PerformanceEvents) => {
       )}
 
       {expressRows.length > 0 && (
-        <div className="rounded border border-slate-700/60 px-3 py-2">
-          <div className="text-slate-400 mb-2">业绩快报</div>
-          <div className="overflow-x-auto">
+        <div className="f10-table-card px-4 py-4">
+          <div className="f10-table-title text-[11px] uppercase tracking-[0.18em]">业绩快报</div>
+          <div className="overflow-x-auto f10-table-shell">
             <table className="min-w-[1120px] w-full text-xs">
               <thead>
                 <tr className="text-slate-500 border-b border-slate-700/60">
@@ -2409,9 +2419,9 @@ const renderPerformance = (performance?: PerformanceEvents) => {
       )}
 
       {scheduleRows.length > 0 && (
-        <div className="rounded border border-slate-700/60 px-3 py-2">
-          <div className="text-slate-400 mb-2">披露预约</div>
-          <div className="overflow-x-auto">
+        <div className="f10-table-card px-4 py-4">
+          <div className="f10-table-title text-[11px] uppercase tracking-[0.18em]">披露预约</div>
+          <div className="overflow-x-auto f10-table-shell">
             <table className="min-w-[980px] w-full text-xs">
               <thead>
                 <tr className="text-slate-500 border-b border-slate-700/60">
@@ -2531,9 +2541,9 @@ const renderBonus = (
       : rows;
 
     return (
-      <div className="rounded border border-slate-700/60 px-3 py-2">
-        <div className="flex items-center justify-between mb-2">
-          <div className="text-slate-400">分红方案</div>
+      <div className="f10-table-card px-4 py-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="f10-table-title text-[11px] uppercase tracking-[0.18em] !mb-0">分红方案</div>
           <label className="text-[11px] text-slate-500 inline-flex items-center gap-1 cursor-pointer select-none">
             <input
               type="checkbox"
@@ -2544,7 +2554,7 @@ const renderBonus = (
             隐藏“不分配不转增”
           </label>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto f10-table-shell">
           <table className="min-w-[980px] w-full text-xs">
             <thead>
               <tr className="text-slate-500 border-b border-slate-700/60">
@@ -2575,9 +2585,9 @@ const renderBonus = (
   };
 
   const BonusAnnualTable: React.FC<{ rows: Record<string, any>[] }> = ({ rows }) => (
-    <div className="rounded border border-slate-700/60 px-3 py-2">
-      <div className="text-slate-400 mb-2">年度分红融资汇总</div>
-      <div className="overflow-x-auto">
+    <div className="f10-table-card px-4 py-4">
+      <div className="f10-table-title text-[11px] uppercase tracking-[0.18em]">年度分红融资汇总</div>
+      <div className="overflow-x-auto f10-table-shell">
         <table className="min-w-[760px] w-full text-xs">
           <thead>
             <tr className="text-slate-500 border-b border-slate-700/60">
@@ -2605,9 +2615,9 @@ const renderBonus = (
   );
 
   const BonusFinanceTable: React.FC<{ title: string; rows: Record<string, any>[]; isAllotment?: boolean }> = ({ title, rows, isAllotment }) => (
-    <div className="rounded border border-slate-700/60 px-3 py-2">
-      <div className="text-slate-400 mb-2">{title}</div>
-      <div className="overflow-x-auto">
+    <div className="f10-table-card px-4 py-4">
+      <div className="f10-table-title text-[11px] uppercase tracking-[0.18em]">{title}</div>
+      <div className="overflow-x-auto f10-table-shell">
         <table className="min-w-[980px] w-full text-xs">
           <thead>
             <tr className="text-slate-500 border-b border-slate-700/60">
@@ -2676,7 +2686,7 @@ const BusinessCompositionTable: React.FC<{ records?: Record<string, any>[] }> = 
   const list = records || [];
   if (list.length === 0) {
     return (
-      <div className="rounded border border-slate-700/60 px-3 py-2 text-slate-500">
+      <div className="f10-card px-4 py-4 text-slate-500">
         主营构成: 暂无数据
       </div>
     );
@@ -2722,14 +2732,14 @@ const BusinessCompositionTable: React.FC<{ records?: Record<string, any>[] }> = 
   }, [currentRows]);
 
   return (
-    <div className="rounded border border-slate-700/60 px-3 py-2">
-      <div className="text-slate-400 mb-2">主营构成分析</div>
-      <div className="flex gap-2 overflow-x-auto pb-2">
+    <div className="f10-table-card px-4 py-4">
+      <div className="f10-table-title text-[11px] uppercase tracking-[0.18em]">主营构成分析</div>
+      <div className="f10-toolbar overflow-x-auto pb-2">
         {reportDates.slice(0, 16).map(date => (
           <button
             key={date}
             onClick={() => setSelectedDate(date)}
-            className={`px-2 py-1 rounded border text-[11px] whitespace-nowrap ${
+            className={`whitespace-nowrap ${
               date === selectedDate
                 ? 'border-accent text-accent-2 bg-accent/10'
                 : 'border-slate-700/60 text-slate-400 hover:text-slate-200'
@@ -2739,7 +2749,7 @@ const BusinessCompositionTable: React.FC<{ records?: Record<string, any>[] }> = 
           </button>
         ))}
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto f10-table-shell">
         <table className="min-w-[980px] w-full text-xs">
           <thead>
             <tr className="text-slate-500 border-b border-slate-700/60">
@@ -2801,7 +2811,7 @@ const BusinessReviewPanel: React.FC<{ records?: Record<string, any>[] }> = ({ re
   const list = records || [];
   if (list.length === 0) {
     return (
-      <div className="rounded border border-slate-700/60 px-3 py-2 text-slate-500">
+      <div className="f10-card px-4 py-4 text-slate-500">
         经营评述: 暂无数据
       </div>
     );
@@ -2828,15 +2838,15 @@ const BusinessReviewPanel: React.FC<{ records?: Record<string, any>[] }> = ({ re
 
   const content = String(findValue(selected, ['reviewContent', 'BUSINESS_REVIEW']) || '').trim();
   return (
-    <div className="rounded border border-slate-700/60 px-3 py-2">
-      <div className="text-slate-400 mb-2">经营评述</div>
+    <div className="f10-card px-4 py-4">
+      <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 mb-3">经营评述</div>
       {reportDates.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto pb-2">
+        <div className="f10-toolbar overflow-x-auto pb-3">
           {reportDates.map(date => (
             <button
               key={date}
               onClick={() => setSelectedDate(date)}
-              className={`px-2 py-1 rounded border text-[11px] whitespace-nowrap ${
+              className={`whitespace-nowrap ${
                 date === selectedDate
                   ? 'border-accent text-accent-2 bg-accent/10'
                   : 'border-slate-700/60 text-slate-400 hover:text-slate-200'
@@ -2858,17 +2868,17 @@ const BusinessScopePanel: React.FC<{ records?: Record<string, any>[] }> = ({ rec
   const list = records || [];
   if (list.length === 0) {
     return (
-      <div className="rounded border border-slate-700/60 px-3 py-2 text-slate-500">
+      <div className="f10-card px-4 py-4 text-slate-500">
         主营范围: 暂无数据
       </div>
     );
   }
   return (
-    <div className="rounded border border-slate-700/60 px-3 py-2">
-      <div className="text-slate-400 mb-2">主营范围</div>
-      <div className="space-y-2">
+    <div className="f10-card px-4 py-4">
+      <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 mb-3">主营范围</div>
+      <div className="space-y-3">
         {list.map((item, idx) => (
-          <div key={idx} className="text-slate-200 leading-relaxed whitespace-pre-wrap break-words">
+          <div key={idx} className="f10-subcard px-4 py-3 text-slate-200 leading-relaxed whitespace-pre-wrap break-words">
             {String(findValue(item, ['businessScope', 'BUSINESS_SCOPE']) || '').trim() || '暂无数据'}
           </div>
         ))}
@@ -2979,9 +2989,9 @@ const renderShareholders = (
   const renderTopHolderTable = (title: string, rows: Record<string, any>[], ratioKeys: string[]) => {
     if (!rows.length) return null;
     return (
-      <div className="rounded border border-slate-700/60 px-3 py-2">
-        <div className="text-slate-400 mb-2">{title}</div>
-        <div className="overflow-x-auto">
+      <div className="f10-table-card px-4 py-4">
+        <div className="f10-table-title text-[11px] uppercase tracking-[0.18em]">{title}</div>
+        <div className="overflow-x-auto f10-table-shell">
           <table className="min-w-[920px] w-full text-xs">
             <thead>
               <tr className="text-slate-500 border-b border-slate-700/60">
@@ -3016,8 +3026,8 @@ const renderShareholders = (
   return (
     <div className="space-y-3">
       {controllerInfo && (
-        <div className="rounded border border-slate-700/60 px-3 py-2">
-          <div className="text-slate-400 mb-1">实控人/控股股东</div>
+        <div className="f10-card px-4 py-4">
+          <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 mb-2">实控人 / 控股股东</div>
           <div className="text-slate-200">
             {formatValue(findValue(controllerInfo, ['HOLDER_NAME']))}
             {findValue(controllerInfo, ['HOLD_RATIO']) !== undefined && (
@@ -3041,9 +3051,9 @@ const renderShareholders = (
       ])}
 
       {numberTrendRows.length > 0 && (
-        <div className="rounded border border-slate-700/60 px-3 py-2">
-          <div className="text-slate-400 mb-2">股东人数与股价比</div>
-          <div className="overflow-x-auto">
+        <div className="f10-table-card px-4 py-4">
+          <div className="f10-table-title text-[11px] uppercase tracking-[0.18em]">股东人数与股价比</div>
+          <div className="overflow-x-auto f10-table-shell">
             <table className="min-w-[1200px] w-full text-xs">
               <thead>
                 <tr className="text-slate-500 border-b border-slate-700/60">
@@ -3084,9 +3094,9 @@ const renderShareholders = (
       {renderTopHolderTable('十大流通股东', topFloatShareholders, ['FREE_HOLDNUM_RATIO', 'HOLD_NUM_RATIO'])}
 
       {(topHolderChanges.length > 0 || fallbackHolderChange.length > 0) && (
-        <div className="rounded border border-slate-700/60 px-3 py-2">
-          <div className="text-slate-400 mb-2">十大股东持股变动</div>
-          <div className="overflow-x-auto">
+        <div className="f10-table-card px-4 py-4">
+          <div className="f10-table-title text-[11px] uppercase tracking-[0.18em]">十大股东持股变动</div>
+          <div className="overflow-x-auto f10-table-shell">
             <table className="min-w-[1100px] w-full text-xs">
               <thead>
                 <tr className="text-slate-500 border-b border-slate-700/60">
@@ -3122,9 +3132,9 @@ const renderShareholders = (
       )}
 
       {institutionSummaryRenderableRows.length > 0 && institutionSummaryMetrics.length > 0 && (
-        <div className="rounded border border-slate-700/60 px-3 py-2">
-          <div className="text-slate-400 mb-2">机构持仓统计</div>
-          <div className="overflow-x-auto">
+        <div className="f10-table-card px-4 py-4">
+          <div className="f10-table-title text-[11px] uppercase tracking-[0.18em]">机构持仓统计</div>
+          <div className="overflow-x-auto f10-table-shell">
             <table className="w-full text-xs" style={{ minWidth: `${institutionSummaryMinWidth}px` }}>
               <thead>
                 <tr className="text-slate-500 border-b border-slate-700/60">
@@ -3321,7 +3331,7 @@ const renderSimpleTable = (
 ) => {
   if (!rows || rows.length === 0) {
     return (
-      <div className="rounded border border-slate-700/60 px-3 py-2 text-slate-500">
+      <div className="f10-card px-4 py-3 text-slate-500">
         {emptyText}
       </div>
     );
@@ -3329,9 +3339,9 @@ const renderSimpleTable = (
 
   const displayRows = rows.slice(0, limit);
   return (
-    <div className="rounded border border-slate-700/60 px-3 py-2">
-      <div className="text-slate-400 mb-2">{title}</div>
-      <div className="overflow-x-auto">
+    <div className="f10-card px-4 py-4">
+      <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 mb-3">{title}</div>
+      <div className="overflow-x-auto f10-table-shell">
         <table className="min-w-full text-xs">
           <thead>
             <tr className="text-slate-500 border-b border-slate-700/60">
@@ -3362,15 +3372,15 @@ const renderSimpleTable = (
 const renderEventList = (title: string, items?: Record<string, any>[], preferKeys?: string[]) => {
   if (!items || items.length === 0) {
     return (
-      <div className="rounded border border-slate-700/60 px-3 py-2 text-slate-500">
+      <div className="f10-card px-4 py-3 text-slate-500">
         {title}: 暂无数据
       </div>
     );
   }
 
   return (
-    <div className="rounded border border-slate-700/60 px-3 py-2">
-      <div className="text-slate-400 mb-2">{title}</div>
+    <div className="f10-card px-4 py-4">
+      <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 mb-3">{title}</div>
       <div className="space-y-2">
         {items.slice(0, 4).map((item, idx) => {
           const formatEventDate = (value: any) => {
@@ -4439,9 +4449,9 @@ const renderLatestMetrics = (
 ) => {
   if (!record) return null;
   return (
-    <div className="rounded border border-slate-700/60 px-3 py-2">
-      <div className="text-slate-400 mb-2">{title}</div>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-slate-200">
+      <div className="f10-card px-4 py-4">
+      <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 mb-3">{title}</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-2 text-slate-200">
         {fields.map(field => {
           const value = findValue(record, field.keys);
           if (value === undefined || value === null || value === '') {
@@ -4490,16 +4500,16 @@ const renderRecordGrid = (
 
   if (entries.length === 0) {
     return (
-      <div className="rounded border border-slate-700/60 px-3 py-2 text-slate-500">
+      <div className="f10-card px-4 py-3 text-slate-500">
         {title}: 暂无数据
       </div>
     );
   }
 
   return (
-    <div className="rounded border border-slate-700/60 px-3 py-2">
-      <div className="text-slate-400 mb-2">{title}</div>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-slate-200">
+    <div className="f10-card px-4 py-4">
+      <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500 mb-3">{title}</div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-2 text-slate-200">
         {entries.slice(0, limit).map(([key, value]) => (
           <div key={key} className="flex justify-between gap-2">
             <span className="text-slate-500">{mapKeyLabel(key)}</span>
@@ -4526,6 +4536,3 @@ const mergeRecords = (...records: Array<Record<string, any> | undefined>) => {
 };
 
 export { F10Panel };
-
-
-

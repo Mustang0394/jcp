@@ -24,16 +24,16 @@ export const OrderBook: React.FC<OrderBookProps> = ({ data }) => {
   const weibiColorClass = weibiValue > 0 ? 'text-red-400' : weibiValue < 0 ? 'text-green-400' : 'text-slate-300';
 
   return (
-    <div className="h-full flex flex-row fin-panel border-l fin-divider overflow-hidden text-[11px] font-mono select-none">
+    <div className="h-full flex flex-row overflow-hidden text-[11px] font-mono select-none rounded-[22px] border fin-divider bg-slate-950/35">
        {/* 买盘 */}
-       <div className="flex-1 flex flex-col border-r fin-divider">
-          <div className="px-2 py-1 border-b fin-divider font-bold text-slate-400 flex justify-between fin-panel-strong">
+       <div className="flex-1 flex flex-col border-r fin-divider-soft">
+          <div className="px-3 py-2 border-b fin-divider-soft font-bold text-slate-400 flex justify-between fin-panel-strong">
              <span>买盘</span>
              <span className="text-[10px] font-normal opacity-70">数量</span>
           </div>
           <div className="flex-1 overflow-hidden">
              {bids.slice(0, 5).map((bid, i) => (
-                <div key={`bid-${i}`} className="relative h-5 flex items-center justify-between px-2 leading-none hover:bg-slate-800/50 cursor-default">
+                <div key={`bid-${i}`} className="relative h-8 flex items-center justify-between px-3 leading-none hover:bg-slate-800/50 cursor-default">
                    <div 
                     className="absolute top-0 left-0 bottom-0 bg-green-900/20 transition-all duration-300" 
                     style={{ width: `${Math.min(bid.percent * 5, 100)}%` }}
@@ -46,7 +46,7 @@ export const OrderBook: React.FC<OrderBookProps> = ({ data }) => {
        </div>
 
        {/* 委比信息 */}
-       <div className="w-[74px] flex flex-col items-center justify-center border-r fin-divider fin-panel-strong z-10 shadow-inner">
+       <div className="w-[88px] flex flex-col items-center justify-center border-r fin-divider-soft fin-panel-strong z-10 shadow-inner">
            <div className="text-slate-500 text-[10px]">委比</div>
            <div className={`font-bold my-0.5 ${weibiColorClass}`}>{weibiText}</div>
            <div className="text-[9px] leading-tight text-slate-500 flex flex-col items-center">
@@ -57,13 +57,13 @@ export const OrderBook: React.FC<OrderBookProps> = ({ data }) => {
 
        {/* 卖盘 */}
        <div className="flex-1 flex flex-col">
-          <div className="px-2 py-1 border-b fin-divider font-bold text-slate-400 flex justify-between fin-panel-strong">
+          <div className="px-3 py-2 border-b fin-divider-soft font-bold text-slate-400 flex justify-between fin-panel-strong">
              <span>卖盘</span>
              <span className="text-[10px] font-normal opacity-70">数量</span>
           </div>
           <div className="flex-1 overflow-hidden">
             {asks.slice(0, 5).map((ask, i) => (
-                <div key={`ask-${i}`} className="relative h-5 flex items-center justify-between px-2 leading-none hover:bg-slate-800/50 cursor-default">
+                <div key={`ask-${i}`} className="relative h-8 flex items-center justify-between px-3 leading-none hover:bg-slate-800/50 cursor-default">
                    <div 
                     className="absolute top-0 right-0 bottom-0 bg-red-900/20 transition-all duration-300" 
                     style={{ width: `${Math.min(ask.percent * 5, 100)}%` }} 

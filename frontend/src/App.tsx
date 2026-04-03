@@ -54,6 +54,9 @@ const clampLayoutValue = (value: number | undefined, min: number, max: number, f
 const formatClock = (): string =>
   new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
+type WorkspaceMode = 'wide' | 'compact' | 'stacked';
+type WorkspaceFocusMode = 'panorama' | 'market' | 'f10' | 'meeting';
+
 const App: React.FC = () => {
   const { colors } = useTheme();
   const [watchlist, setWatchlist] = useState<Stock[]>([]);
@@ -87,7 +90,25 @@ const App: React.FC = () => {
   const [leftPanelWidth, setLeftPanelWidth] = useState(LAYOUT_DEFAULTS.leftPanelWidth);
   const [rightPanelWidth, setRightPanelWidth] = useState(LAYOUT_DEFAULTS.rightPanelWidth);
   const [bottomPanelHeight, setBottomPanelHeight] = useState(LAYOUT_DEFAULTS.bottomPanelHeight);
+  const [viewportWidth, setViewportWidth] = useState<number>(() =>
+    typeof window === 'undefined' ? WINDOW_RESTORE_DEFAULT.width : window.innerWidth,
+  );
+  const [workspaceFocusMode, setWorkspaceFocusMode] = useState<WorkspaceFocusMode>('panorama');
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const workspaceMode: WorkspaceMode = viewportWidth <= 1220 ? 'stacked' : viewportWidth <= 1580 ? 'compact' : 'wide';
+  const isWideWorkspace = workspaceMode === 'wide';
+  const showWorkspaceFocusBar = !isWideWorkspace;
+  const effectiveBottomPanelHeight = isWideWorkspace
+    ? bottomPanelHeight
+    : workspaceMode === 'compact'
+      ? 136
+      : 124;
+  const centerPaneShowsF10 = workspaceFocusMode === 'f10' ? true : workspaceFocusMode === 'market' ? false : showF10;
+  const visibleLeftPane = isWideWorkspace || workspaceFocusMode === 'panorama';
+  const visibleCenterPane =
+    isWideWorkspace || workspaceFocusMode === 'panorama' || workspaceFocusMode === 'market' || workspaceFocusMode === 'f10';
+  const visibleRightPane = isWideWorkspace || workspaceFocusMode === 'panorama' || workspaceFocusMode === 'meeting';
 
   const selectedStock = useMemo(() =>
     watchlist.find(s => s.symbol === selectedSymbol) || watchlist[0]
@@ -242,6 +263,13 @@ const App: React.FC = () => {
     }, 500);
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const handleResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // 左侧面板 resize
   const handleLeftResize = useCallback((delta: number) => {
     setLeftPanelWidth(prev => {
@@ -317,10 +345,12 @@ const App: React.FC = () => {
 
   const handleShowTrend = useCallback(() => {
     setShowF10(false);
+    setWorkspaceFocusMode(prev => (prev === 'f10' ? 'market' : prev));
   }, []);
 
   const handleShowF10 = useCallback(() => {
     setShowF10(true);
+    setWorkspaceFocusMode(prev => (prev === 'market' ? 'f10' : prev));
     if (
       selectedStock?.symbol &&
       (!f10Overview || f10Overview.code !== selectedStock.symbol)
@@ -571,15 +601,15 @@ const App: React.FC = () => {
   if (!selectedStock) return <div className="h-screen w-screen flex items-center justify-center fin-app text-white">请添加自选股</div>;
 
   return (
-    <div className="flex flex-col h-screen text-slate-100 font-sans fin-app">
+    <div className="flex flex-col h-screen text-slate-100 font-sans fin-app app-shell">
       {/* Top Navbar */}
-      <header className="h-14 fin-panel border-b fin-divider flex items-center px-4 justify-between shrink-0 z-20" style={{ '--wails-draggable': 'drag' } as React.CSSProperties}>
+      <header className="h-16 fin-panel border-b fin-divider flex items-center px-5 justify-between shrink-0 z-20" style={{ '--wails-draggable': 'drag' } as React.CSSProperties}>
         <div className="flex items-center gap-2" style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
           <img src={logo} alt="logo" className="h-8 w-8 rounded-lg" />
           <span className={`font-bold text-lg tracking-tight ${colors.isDark ? 'text-white' : 'text-slate-800'}`}>韭菜盘 <span className="text-accent-2">AI</span></span>
         </div>
         
-        <div className="flex items-center gap-4 fin-panel-soft px-4 py-1.5 rounded-full border fin-divider relative" style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
+        <div className="flex items-center gap-4 fin-panel-soft px-4 py-2 rounded-full border fin-divider relative shadow-[0_10px_24px_rgba(0,0,0,0.18)]" style={{ '--wails-draggable': 'no-drag' } as React.CSSProperties}>
           <Radio className="h-3 w-3 animate-pulse text-accent-2" />
           <span className={`text-xs font-mono w-96 truncate text-center ${colors.isDark ? 'text-slate-300' : 'text-slate-600'}`}>
             实时快讯: {marketMessage}
@@ -698,35 +728,98 @@ const App: React.FC = () => {
       </header>
 
       {/* Main Content Grid */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className={`workspace-shell workspace-${workspaceMode} flex-1 overflow-hidden px-3 pb-3 pt-3 gap-3`}>
+        {showWorkspaceFocusBar && (
+          <div className="workspace-focusbar app-surface">
+            <div className="workspace-focusbar-copy">
+              <div className={`text-[11px] uppercase tracking-[0.2em] ${colors.isDark ? 'text-slate-500' : 'text-slate-400'}`}>快速切换</div>
+              <div className={`text-xs mt-1 ${colors.isDark ? 'text-slate-300' : 'text-slate-600'}`}>小窗口下优先聚焦当前最重要的一块</div>
+            </div>
+            <div className="workspace-focusbar-actions">
+              {[
+                { id: 'panorama' as WorkspaceFocusMode, label: '全景' },
+                { id: 'market' as WorkspaceFocusMode, label: '行情' },
+                { id: 'f10' as WorkspaceFocusMode, label: 'F10' },
+                { id: 'meeting' as WorkspaceFocusMode, label: '会议' },
+              ].map(item => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => {
+                    setWorkspaceFocusMode(item.id);
+                    if (item.id === 'market') {
+                      setShowF10(false);
+                    }
+                    if (item.id === 'f10') {
+                      handleShowF10();
+                    }
+                  }}
+                  className={`workspace-focus-button ${
+                    workspaceFocusMode === item.id
+                      ? 'border-accent text-accent-2 bg-accent/10'
+                      : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Left Sidebar: Watchlist */}
-        <div style={{ width: leftPanelWidth }} className="shrink-0 fin-panel overflow-hidden">
-          <StockList
-            stocks={watchlist}
-            selectedSymbol={selectedSymbol}
-            onSelect={handleSelectStock}
-            onAddStock={handleAddStock}
-            onRemoveStock={handleRemoveStock}
-            marketIndices={marketIndices}
-            selectedIndexCode={selectedSymbol}
-            onSelectIndex={handleSelectIndex}
-          />
-        </div>
+        {visibleLeftPane && (
+          <div
+            style={isWideWorkspace ? { width: leftPanelWidth } : undefined}
+            className={`workspace-pane workspace-left shrink-0 app-surface app-sidebar-shell overflow-hidden ${
+              !isWideWorkspace && workspaceFocusMode !== 'panorama' ? 'workspace-pane-focus' : ''
+            }`}
+          >
+            <StockList
+              stocks={watchlist}
+              selectedSymbol={selectedSymbol}
+              onSelect={handleSelectStock}
+              onAddStock={handleAddStock}
+              onRemoveStock={handleRemoveStock}
+              marketIndices={marketIndices}
+              selectedIndexCode={selectedSymbol}
+              onSelectIndex={handleSelectIndex}
+            />
+          </div>
+        )}
 
         {/* Left Resize Handle */}
-        <ResizeHandle direction="horizontal" onResize={handleLeftResize} onResizeEnd={handleResizeEnd} />
+        {isWideWorkspace && (
+          <div className="workspace-resize-handle">
+            <ResizeHandle direction="horizontal" onResize={handleLeftResize} onResizeEnd={handleResizeEnd} />
+          </div>
+        )}
 
         {/* Center Panel: Charts & Data */}
-        <div className="flex-1 flex flex-col min-w-0 fin-panel-center relative z-0">
-          {/* Stock Header - A股风格 */}
-          <div className="px-6 py-2 shrink-0 border-b fin-divider-soft">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className={`text-lg font-bold ${colors.isDark ? 'text-white' : 'text-slate-800'}`}>{selectedStock.name}</span>
-                <span className={`text-sm font-mono ${colors.isDark ? 'text-slate-400' : 'text-slate-500'}`}>{selectedStock.symbol}</span>
+        {visibleCenterPane && (
+        <div className={`workspace-pane workspace-center flex-1 flex flex-col min-w-0 app-surface app-main-shell relative z-0 ${
+          !isWideWorkspace && workspaceFocusMode !== 'panorama' ? 'workspace-pane-focus' : ''
+        }`}>
+          <div className="workspace-stock-header px-6 py-5 shrink-0 border-b fin-divider-soft">
+            <div className="workspace-stock-header-inner flex items-start justify-between gap-6">
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className={`text-[1.7rem] leading-none font-bold tracking-tight ${colors.isDark ? 'text-white' : 'text-slate-800'}`}>{selectedStock.name}</span>
+                  <span className={`text-sm font-mono px-3 py-1 rounded-full border fin-divider fin-chip ${colors.isDark ? 'text-slate-300' : 'text-slate-600'}`}>{selectedStock.symbol}</span>
+                  <span className={`text-[11px] uppercase tracking-[0.22em] ${colors.isDark ? 'text-slate-500' : 'text-slate-400'}`}>全景分析工作台</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] ${colors.isDark ? 'border-slate-700 text-slate-300 bg-slate-900/45' : 'border-slate-300 text-slate-600 bg-white/65'}`}>
+                    <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                    行情 / 会议 / F10 三栏并行
+                  </span>
+                  <span className={`text-xs ${colors.isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    先看全景，再决定深挖路径
+                  </span>
+                </div>
                 <button
                   onClick={() => setShowPosition(true)}
-                  className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${colors.isDark ? 'text-slate-400 hover:bg-slate-700/50' : 'text-slate-500 hover:bg-slate-200/50'} hover:text-accent-2`}
+                  className={`inline-flex items-center gap-2 px-3 py-2 rounded-2xl text-xs transition-colors ${colors.isDark ? 'text-slate-300 hover:bg-slate-800/60 bg-slate-900/40 border border-slate-700/60' : 'text-slate-600 hover:bg-slate-100 bg-white/70 border border-slate-200'} hover:text-accent-2`}
                   title="持仓设置"
                 >
                   <Briefcase className="h-3.5 w-3.5" />
@@ -749,142 +842,57 @@ const App: React.FC = () => {
                   )}
                 </button>
               </div>
-              <div className="flex items-end gap-3">
-                <div className={`text-3xl leading-none font-mono font-bold ${selectedStock.change >= 0 ? 'text-red-500' : 'text-green-500'}`}>
+              <div className="flex flex-col items-end gap-3">
+                <div className={`text-4xl leading-none font-mono font-bold ${selectedStock.change >= 0 ? 'text-red-500' : 'text-green-500'}`}>
                   {selectedStock.price.toFixed(2)}
                 </div>
-                <div className="flex items-center gap-3 text-sm pb-0.5">
-                <span className={`font-mono ${selectedStock.change >= 0 ? 'text-red-500' : 'text-green-500'}`}>
-                  {selectedStock.change >= 0 ? '+' : ''}{selectedStock.change.toFixed(2)}
-                </span>
-                <span className={`font-mono ${selectedStock.change >= 0 ? 'text-red-500' : 'text-green-500'}`}>
-                  {selectedStock.change >= 0 ? '+' : ''}{selectedStock.changePercent.toFixed(2)}%
-                </span>
+                <div className="flex flex-wrap items-center justify-end gap-3 text-sm">
+                  <span className={`font-mono ${selectedStock.change >= 0 ? 'text-red-500' : 'text-green-500'}`}>
+                    {selectedStock.change >= 0 ? '+' : ''}{selectedStock.change.toFixed(2)}
+                  </span>
+                  <span className={`font-mono px-3 py-1 rounded-full border ${selectedStock.change >= 0 ? 'border-red-500/25 bg-red-500/10 text-red-400' : 'border-emerald-500/25 bg-emerald-500/10 text-green-400'}`}>
+                    {selectedStock.change >= 0 ? '+' : ''}{selectedStock.changePercent.toFixed(2)}%
+                  </span>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* 行情 / 成交估值 / 市值资金 */}
-          <div className="border-b fin-divider-soft shrink-0 text-xs">
-            {isMaximized ? (
-              <div className="grid grid-cols-1 xl:grid-cols-3">
-                <div className="px-4 py-2 border-b xl:border-b-0 xl:border-r fin-divider-soft">
-                  <div className={`text-[10px] uppercase tracking-wide mb-1 ${colors.isDark ? 'text-slate-500' : 'text-slate-400'}`}>行情</div>
-                  <div className="grid grid-cols-3 gap-x-3 gap-y-1.5">
-                    {marketOverview.quote.map((item) => (
-                      <div key={item.label} className="flex items-center gap-1.5 min-w-0">
-                        <span className={colors.isDark ? 'text-slate-500' : 'text-slate-400'}>{item.label}</span>
-                        <span className={`font-mono ${('colorClass' in item && item.colorClass) || (colors.isDark ? 'text-slate-200' : 'text-slate-700')}`}>{item.value}</span>
+          <div className="border-b fin-divider-soft shrink-0">
+            <div className="market-strip">
+              {[
+                { key: 'quote', title: '即时行情', note: '盘面快照', items: marketOverview.quote, gridClass: 'quote' },
+                { key: 'deal', title: '成交估值', note: '量价与估值', items: marketOverview.deal, gridClass: 'deal' },
+                { key: 'capital', title: '市值资金', note: '规模与强弱', items: marketOverview.capital, gridClass: 'capital' },
+              ].map((group) => (
+                <div key={group.key} className="market-overview-card">
+                  <div className="market-overview-title">
+                    <span className="market-overview-heading">{group.title}</span>
+                    <span className="market-overview-note">{group.note}</span>
+                  </div>
+                  <div className={`market-overview-grid ${group.gridClass}`}>
+                    {group.items.map((item) => (
+                      <div key={item.label} className="market-overview-item">
+                        <span className="market-overview-label">{item.label}</span>
+                        <span className={`market-overview-value ${('colorClass' in item && item.colorClass) || ''}`}>{item.value}</span>
                       </div>
                     ))}
                   </div>
                 </div>
-
-                <div className="px-4 py-2 border-b xl:border-b-0 xl:border-r fin-divider-soft">
-                  <div className={`text-[10px] uppercase tracking-wide mb-1 ${colors.isDark ? 'text-slate-500' : 'text-slate-400'}`}>成交 / 估值</div>
-                  <div className="grid grid-cols-3 gap-x-3 gap-y-1.5">
-                    {marketOverview.deal.map((item) => (
-                      <div key={item.label} className="flex items-center gap-1.5 min-w-0">
-                        <span className={colors.isDark ? 'text-slate-500' : 'text-slate-400'}>{item.label}</span>
-                        <span className={`font-mono ${('colorClass' in item && item.colorClass) || (colors.isDark ? 'text-slate-200' : 'text-slate-700')}`}>{item.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="px-4 py-2">
-                  <div className={`text-[10px] uppercase tracking-wide mb-1 ${colors.isDark ? 'text-slate-500' : 'text-slate-400'}`}>市值 / 资金</div>
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
-                    {marketOverview.capital.map((item) => (
-                      <div key={item.label} className="flex items-center gap-1.5 min-w-0">
-                        <span className={colors.isDark ? 'text-slate-500' : 'text-slate-400'}>{item.label}</span>
-                        <span className={`font-mono ${('colorClass' in item && item.colorClass) || (colors.isDark ? 'text-slate-200' : 'text-slate-700')}`}>{item.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="px-4 py-0.5 relative z-[80]">
-                <div className="flex items-center gap-3 text-[11px]">
-                  <div className="relative group">
-                    <button
-                      type="button"
-                      className={`h-6 px-1.5 rounded-sm transition-colors flex items-center justify-center whitespace-nowrap ${
-                        colors.isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-800'
-                      }`}
-                    >
-                      <span className="font-medium">行情数据</span>
-                    </button>
-                    <div className={`absolute left-0 top-full z-[120] mt-1 w-[320px] rounded-lg border fin-divider-soft shadow-xl fin-panel p-2 hidden group-hover:block ${colors.isDark ? 'bg-slate-900/95' : 'bg-white/95'}`}>
-                      <div className={`text-[10px] uppercase tracking-wide mb-1 ${colors.isDark ? 'text-slate-500' : 'text-slate-400'}`}>行情</div>
-                      <div className="grid grid-cols-3 gap-x-2.5 gap-y-1.5">
-                        {marketOverview.quote.map((item) => (
-                          <div key={item.label} className="flex items-center gap-1 min-w-0">
-                            <span className={colors.isDark ? 'text-slate-500' : 'text-slate-400'}>{item.label}</span>
-                            <span className={`font-mono ${('colorClass' in item && item.colorClass) || (colors.isDark ? 'text-slate-200' : 'text-slate-700')}`}>{item.value}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="relative group">
-                    <button
-                      type="button"
-                      className={`h-6 px-1.5 rounded-sm transition-colors flex items-center justify-center whitespace-nowrap ${
-                        colors.isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-800'
-                      }`}
-                    >
-                      <span className="font-medium">成交估值</span>
-                    </button>
-                    <div className={`absolute left-0 top-full z-[120] mt-1 w-[360px] rounded-lg border fin-divider-soft shadow-xl fin-panel p-2 hidden group-hover:block ${colors.isDark ? 'bg-slate-900/95' : 'bg-white/95'}`}>
-                      <div className={`text-[10px] uppercase tracking-wide mb-1 ${colors.isDark ? 'text-slate-500' : 'text-slate-400'}`}>成交 / 估值</div>
-                      <div className="grid grid-cols-3 gap-x-2.5 gap-y-1.5">
-                        {marketOverview.deal.map((item) => (
-                          <div key={item.label} className="flex items-center gap-1 min-w-0">
-                            <span className={colors.isDark ? 'text-slate-500' : 'text-slate-400'}>{item.label}</span>
-                            <span className={`font-mono ${('colorClass' in item && item.colorClass) || (colors.isDark ? 'text-slate-200' : 'text-slate-700')}`}>{item.value}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="relative group">
-                    <button
-                      type="button"
-                      className={`h-6 px-1.5 rounded-sm transition-colors flex items-center justify-center whitespace-nowrap ${
-                        colors.isDark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-800'
-                      }`}
-                    >
-                      <span className="font-medium">市值资金</span>
-                    </button>
-                    <div className={`absolute left-0 top-full z-[120] mt-1 w-[300px] rounded-lg border fin-divider-soft shadow-xl fin-panel p-2 hidden group-hover:block ${colors.isDark ? 'bg-slate-900/95' : 'bg-white/95'}`}>
-                      <div className={`text-[10px] uppercase tracking-wide mb-1 ${colors.isDark ? 'text-slate-500' : 'text-slate-400'}`}>市值 / 资金</div>
-                      <div className="grid grid-cols-2 gap-x-2.5 gap-y-1.5">
-                        {marketOverview.capital.map((item) => (
-                          <div key={item.label} className="flex items-center gap-1 min-w-0">
-                            <span className={colors.isDark ? 'text-slate-500' : 'text-slate-400'}>{item.label}</span>
-                            <span className={`font-mono ${('colorClass' in item && item.colorClass) || (colors.isDark ? 'text-slate-200' : 'text-slate-700')}`}>{item.value}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
+              ))}
+            </div>
           </div>
 
-          {/* 视图切换：趋势图 / F10全景 */}
-          <div className="px-4 py-1 border-b fin-divider-soft shrink-0">
-            <div className="flex items-center gap-1.5">
+          <div className="workspace-viewbar px-5 py-3 border-b fin-divider-soft shrink-0 flex items-center justify-between gap-4">
+            <div>
+              <div className={`text-[11px] uppercase tracking-[0.2em] ${colors.isDark ? 'text-slate-500' : 'text-slate-400'}`}>主分析区</div>
+              <div className={`text-sm mt-1 ${colors.isDark ? 'text-slate-300' : 'text-slate-600'}`}>趋势图负责看节奏，F10 负责看逻辑与基本面</div>
+            </div>
+            <div className="fin-view-switch">
               <button
                 type="button"
                 onClick={handleShowTrend}
-                className={`text-xs px-2.5 py-0.5 rounded border transition-colors ${
+                className={`transition-colors ${
                   !showF10
                     ? 'border-accent text-accent-2 bg-accent/10'
                     : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
@@ -895,7 +903,7 @@ const App: React.FC = () => {
               <button
                 type="button"
                 onClick={handleShowF10}
-                className={`text-xs px-2.5 py-0.5 rounded border transition-colors ${
+                className={`transition-colors ${
                   showF10
                     ? 'border-accent text-accent-2 bg-accent/10'
                     : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
@@ -907,28 +915,29 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex-1 flex flex-col min-h-0 relative z-0">
-            {!showF10 ? (
+            {!centerPaneShowsF10 ? (
               <>
-                 {/* Chart Section */}
-                <div className="flex-1 p-1 relative min-h-0">
-                   <StockChart
-                      data={kLineData}
-                      period={timePeriod}
-                      onPeriodChange={setTimePeriod}
-                      stock={selectedStock}
-                      floatShares={f10Overview?.valuation?.floatShares}
-                      fallbackTurnoverRate={f10Overview?.valuation?.turnoverRate}
-                   />
+                <div className="flex-1 relative min-h-0 chart-stage">
+                  <StockChart
+                    data={kLineData}
+                    period={timePeriod}
+                    onPeriodChange={setTimePeriod}
+                    stock={selectedStock}
+                    floatShares={f10Overview?.valuation?.floatShares}
+                    fallbackTurnoverRate={f10Overview?.valuation?.turnoverRate}
+                  />
                 </div>
 
-                {/* Bottom Resize Handle */}
-                <ResizeHandle direction="vertical" onResize={handleBottomResize} onResizeEnd={handleResizeEnd} />
+                {isWideWorkspace && (
+                  <div className="workspace-resize-handle workspace-resize-handle-vertical">
+                    <ResizeHandle direction="vertical" onResize={handleBottomResize} onResizeEnd={handleResizeEnd} />
+                  </div>
+                )}
 
-                {/* Bottom Info Panel: Order Book */}
-                <div style={{ height: bottomPanelHeight }} className="border-t fin-divider-soft flex shrink-0">
-                   <div className="flex-1 overflow-hidden relative">
-                      <OrderBookComponent data={orderBook} />
-                   </div>
+                <div style={{ height: effectiveBottomPanelHeight }} className="border-t fin-divider-soft flex shrink-0 bottom-stage">
+                  <div className="flex-1 overflow-hidden relative app-surface rounded-[22px]">
+                    <OrderBookComponent data={orderBook} />
+                  </div>
                 </div>
               </>
             ) : (
@@ -944,17 +953,29 @@ const App: React.FC = () => {
             )}
           </div>
         </div>
+        )}
 
         {/* Right Resize Handle */}
-        <ResizeHandle direction="horizontal" onResize={handleRightResize} onResizeEnd={handleResizeEnd} />
+        {isWideWorkspace && (
+          <div className="workspace-resize-handle">
+            <ResizeHandle direction="horizontal" onResize={handleRightResize} onResizeEnd={handleResizeEnd} />
+          </div>
+        )}
 
         {/* Right Panel: AI Agents */}
-        <div style={{ width: rightPanelWidth }} className="shrink-0 fin-panel overflow-hidden">
-          <AgentRoom
-            session={currentSession}
-            onSessionUpdate={setCurrentSession}
-          />
-        </div>
+        {visibleRightPane && (
+          <div
+            style={isWideWorkspace ? { width: rightPanelWidth } : undefined}
+            className={`workspace-pane workspace-right shrink-0 app-surface app-sidebar-shell overflow-hidden ${
+              !isWideWorkspace && workspaceFocusMode !== 'panorama' ? 'workspace-pane-focus' : ''
+            }`}
+          >
+            <AgentRoom
+              session={currentSession}
+              onSessionUpdate={setCurrentSession}
+            />
+          </div>
+        )}
       </div>
 
       {pendingRemoveSymbol && (

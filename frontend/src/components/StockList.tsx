@@ -96,10 +96,10 @@ export const StockList: React.FC<StockListProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full fin-panel border-r fin-divider w-full relative">
-      <div className="p-4 fin-panel-strong border-b fin-divider">
+    <div className="flex flex-col h-full w-full relative">
+      <div className="px-4 pt-4 pb-3 border-b fin-divider-soft">
         {/* 大盘指数 */}
-        <div className="mb-4 pb-3 border-b fin-divider flex justify-center">
+        <div className="mb-4 pb-4 border-b fin-divider-soft flex justify-center">
           <MarketIndices
             indices={marketIndices || []}
             selectedCode={selectedIndexCode}
@@ -115,7 +115,7 @@ export const StockList: React.FC<StockListProps> = ({
               onChange={(e) => setSearchTerm(e.target.value)}
               onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
               placeholder="搜索股票代码或名称..."
-              className="w-full fin-input rounded-lg pl-9 pr-4 py-2 text-sm placeholder-slate-500"
+              className="w-full fin-input rounded-2xl pl-9 pr-4 py-2.5 text-sm placeholder-slate-500"
             />
             {isSearching && (
               <div className="absolute right-3 top-2.5 h-4 w-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
@@ -148,7 +148,7 @@ export const StockList: React.FC<StockListProps> = ({
         </div>
       </div>
       
-      <div className="flex-1 overflow-y-auto fin-scrollbar">
+      <div className="flex-1 overflow-y-auto fin-scrollbar px-3 py-3 space-y-2">
         {stocks.map((stock) => {
           const isSelected = stock.symbol === selectedSymbol;
           const isPositive = stock.change >= 0;
@@ -157,7 +157,11 @@ export const StockList: React.FC<StockListProps> = ({
             <div
               key={stock.symbol}
               onClick={() => onSelect(stock.symbol)}
-              className={`group px-3 py-2.5 border-b fin-divider cursor-pointer transition-colors hover:bg-slate-800/60 ${isSelected ? 'bg-slate-800/60 border-l-4 border-l-accent' : 'border-l-4 border-l-transparent'}`}
+              className={`group rounded-[20px] px-3.5 py-3.5 border cursor-pointer transition-all duration-200 ${
+                isSelected
+                  ? 'border-accent/40 bg-slate-800/70 shadow-[0_14px_28px_rgba(0,0,0,0.18)]'
+                  : 'border-slate-800/70 bg-slate-900/35 hover:bg-slate-800/55 hover:border-slate-700/80'
+              }`}
             >
               <div className="flex justify-between items-start mb-0.5">
                 <div className="flex-1 min-w-0">
