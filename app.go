@@ -412,7 +412,7 @@ func (a *App) GetOrderBook(code string) models.OrderBook {
 
 // SearchStocks 搜索股票
 func (a *App) SearchStocks(keyword string) []services.StockSearchResult {
-	return a.configService.SearchStocks(keyword, 20)
+	return a.marketService.SearchStocks(keyword, 20)
 }
 
 // getDefaultAIConfig 获取默认AI配置

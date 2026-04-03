@@ -17,7 +17,6 @@ import (
 	"github.com/run-bigpig/jcp/internal/logger"
 	"github.com/run-bigpig/jcp/internal/models"
 	"github.com/run-bigpig/jcp/internal/pkg/paths"
-	"github.com/run-bigpig/jcp/internal/pkg/proxy"
 
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
@@ -92,7 +91,9 @@ type TradingSchedule struct {
 
 // MarketService 市场数据服务
 type MarketService struct {
-	client *http.Client
+	client           *http.Client
+	primaryProvider  marketProvider
+	fallbackProvider marketProvider
 
 	// 股票数据缓存
 	cache    map[string]*stockCache
@@ -107,15 +108,9 @@ type MarketService struct {
 
 // NewMarketService 创建市场数据服务
 func NewMarketService() *MarketService {
-	ms := &MarketService{
-		client:        proxy.GetManager().GetClientWithTimeout(5 * time.Second),
-		cache:         make(map[string]*stockCache),
-		cacheTTL:      2 * time.Second, // 股票缓存2秒
-		klineCache:    make(map[string]*klineCache),
-		klineCacheTTL: klineCacheTTLDefault, // 日/周/月K使用较长缓存，减少API调用
-	}
-	// 启动缓存清理协程
-	go ms.cleanCacheLoop()
+	ms := newMarketService()
+	ms.primaryProvider = newTDXMarketProvider()
+	ms.fallbackProvider = newSinaMarketProvider(ms)
 	return ms
 }
 
@@ -188,7 +183,7 @@ func (ms *MarketService) GetStockDataWithOrderBook(codes ...string) ([]StockWith
 	ms.cacheMu.RUnlock()
 
 	// 从API获取数据
-	data, err := ms.fetchStockDataWithOrderBook(codes...)
+	data, err := ms.fetchStockDataWithFallback(codes...)
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +200,7 @@ func (ms *MarketService) GetStockDataWithOrderBook(codes ...string) ([]StockWith
 }
 
 // fetchStockDataWithOrderBook 从API获取股票数据（含盘口）
-func (ms *MarketService) fetchStockDataWithOrderBook(codes ...string) ([]StockWithOrderBook, error) {
+func (ms *MarketService) fetchStockDataWithOrderBookFromSina(codes ...string) ([]StockWithOrderBook, error) {
 	codeList := strings.Join(codes, ",")
 	url := fmt.Sprintf(sinaStockURL, time.Now().UnixNano(), codeList)
 
@@ -251,32 +246,16 @@ func (ms *MarketService) parseSinaStockDataWithOrderBook(data string) ([]StockWi
 
 // GetStockRealTimeData 获取股票实时数据
 func (ms *MarketService) GetStockRealTimeData(codes ...string) ([]models.Stock, error) {
-	if len(codes) == 0 {
-		return nil, nil
-	}
-
-	codeList := strings.Join(codes, ",")
-	url := fmt.Sprintf(sinaStockURL, time.Now().UnixNano(), codeList)
-
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Referer", "http://finance.sina.com.cn")
-
-	resp, err := ms.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	reader := transform.NewReader(resp.Body, simplifiedchinese.GBK.NewDecoder())
-	body, err := io.ReadAll(reader)
+	data, err := ms.GetStockDataWithOrderBook(codes...)
 	if err != nil {
 		return nil, err
 	}
 
-	return ms.parseSinaStockData(string(body), codes)
+	stocks := make([]models.Stock, 0, len(data))
+	for _, item := range data {
+		stocks = append(stocks, item.Stock)
+	}
+	return stocks, nil
 }
 
 // parseSinaStockData 解析新浪股票数据
@@ -377,8 +356,8 @@ func (ms *MarketService) parseStockWithOrderBook(code string, parts []string) St
 	}
 
 	// 计算累计量和占比
-	ms.calculateOrderBookTotals(bids)
-	ms.calculateOrderBookTotals(asks)
+	calculateOrderBookTotals(bids)
+	calculateOrderBookTotals(asks)
 
 	return StockWithOrderBook{
 		Stock:     stock,
@@ -387,7 +366,7 @@ func (ms *MarketService) parseStockWithOrderBook(code string, parts []string) St
 }
 
 // calculateOrderBookTotals 计算盘口累计量和占比
-func (ms *MarketService) calculateOrderBookTotals(items []models.OrderBookItem) {
+func calculateOrderBookTotals(items []models.OrderBookItem) {
 	if len(items) == 0 {
 		return
 	}
@@ -429,7 +408,7 @@ func (ms *MarketService) GetKLineData(code string, period string, days int) ([]m
 	ms.klineCacheMu.RUnlock()
 
 	// 从API获取数据
-	klines, err := ms.fetchKLineData(code, period, days)
+	klines, err := ms.fetchKLineDataWithFallback(code, period, days)
 	if err != nil {
 		return nil, err
 	}
@@ -447,7 +426,7 @@ func (ms *MarketService) GetKLineData(code string, period string, days int) ([]m
 }
 
 // fetchKLineData 从API获取K线数据
-func (ms *MarketService) fetchKLineData(code string, period string, days int) ([]models.KLineData, error) {
+func (ms *MarketService) fetchKLineDataFromSina(code string, period string, days int) ([]models.KLineData, error) {
 	scale := ms.periodToScale(period)
 	url := fmt.Sprintf(sinaKLineURL, code, scale, days)
 
@@ -469,8 +448,8 @@ func (ms *MarketService) fetchKLineData(code string, period string, days int) ([
 
 	// 分时模式下只返回当天的数据，并计算均价线
 	if period == "1m" {
-		klines = ms.filterTodayKLines(klines)
-		klines = ms.calculateAvgLine(klines)
+		klines = filterTodayKLines(klines)
+		klines = calculateAvgLine(klines)
 	}
 
 	return klines, nil
@@ -493,7 +472,7 @@ func (ms *MarketService) periodToScale(period string) string {
 }
 
 // filterTodayKLines 过滤只返回当天的K线数据
-func (ms *MarketService) filterTodayKLines(klines []models.KLineData) []models.KLineData {
+func filterTodayKLines(klines []models.KLineData) []models.KLineData {
 	if len(klines) == 0 {
 		return klines
 	}
@@ -522,7 +501,7 @@ func (ms *MarketService) filterTodayKLines(klines []models.KLineData) []models.K
 }
 
 // calculateAvgLine 计算分时均价线 (VWAP = 累计成交额 / 累计成交量)
-func (ms *MarketService) calculateAvgLine(klines []models.KLineData) []models.KLineData {
+func calculateAvgLine(klines []models.KLineData) []models.KLineData {
 	if len(klines) == 0 {
 		return klines
 	}
@@ -966,6 +945,15 @@ func (ms *MarketService) fetchTradeDates(days int) ([]string, error) {
 
 // GetMarketIndices 获取大盘指数数据
 func (ms *MarketService) GetMarketIndices() ([]models.MarketIndex, error) {
+	return ms.fetchMarketIndicesWithFallback()
+}
+
+// SearchStocks 搜索股票
+func (ms *MarketService) SearchStocks(keyword string, limit int) []StockSearchResult {
+	return ms.searchStocksWithFallback(keyword, limit)
+}
+
+func (ms *MarketService) fetchMarketIndicesFromSina() ([]models.MarketIndex, error) {
 	codeList := strings.Join(defaultIndexCodes, ",")
 	url := fmt.Sprintf(sinaStockURL, time.Now().UnixNano(), codeList)
 

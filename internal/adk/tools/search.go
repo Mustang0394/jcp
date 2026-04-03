@@ -33,7 +33,7 @@ func (r *Registry) createSearchStocksTool() (tool.Tool, error) {
 			limit = 10
 		}
 
-		results := r.configService.SearchStocks(input.Keyword, limit)
+		results := r.marketService.SearchStocks(input.Keyword, limit)
 
 		var result string
 		for _, s := range results {

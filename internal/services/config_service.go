@@ -4,10 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 
-	"github.com/run-bigpig/jcp/internal/embed"
 	"github.com/run-bigpig/jcp/internal/models"
 )
 
@@ -263,96 +261,7 @@ func (cs *ConfigService) RemoveFromWatchlist(symbol string) error {
 	return nil
 }
 
-// stockBasicData stock_basic.json 的数据结构
-type stockBasicData struct {
-	Data struct {
-		Fields []string        `json:"fields"`
-		Items  [][]interface{} `json:"items"`
-	} `json:"data"`
-}
-
-// StockSearchResult 股票搜索结果
-type StockSearchResult struct {
-	Symbol   string `json:"symbol"`
-	Name     string `json:"name"`
-	Industry string `json:"industry"`
-	Market   string `json:"market"`
-}
-
 // SearchStocks 搜索股票
 func (cs *ConfigService) SearchStocks(keyword string, limit int) []StockSearchResult {
-	if keyword == "" {
-		return []StockSearchResult{}
-	}
-
-	keyword = strings.ToUpper(keyword)
-
-	// 使用嵌入的股票数据
-	var basicData stockBasicData
-	if err := json.Unmarshal(embed.StockBasicJSON, &basicData); err != nil {
-		return []StockSearchResult{}
-	}
-
-	// 找到字段索引
-	var symbolIdx, nameIdx, industryIdx, tsCodeIdx int = -1, -1, -1, -1
-	for i, field := range basicData.Data.Fields {
-		switch field {
-		case "symbol":
-			symbolIdx = i
-		case "name":
-			nameIdx = i
-		case "industry":
-			industryIdx = i
-		case "ts_code":
-			tsCodeIdx = i
-		}
-	}
-
-	if symbolIdx < 0 || nameIdx < 0 {
-		return []StockSearchResult{}
-	}
-
-	var results []StockSearchResult
-	for _, item := range basicData.Data.Items {
-		if len(results) >= limit {
-			break
-		}
-
-		symbol, _ := item[symbolIdx].(string)
-		name, _ := item[nameIdx].(string)
-
-		// 匹配代码或名称
-		upperSymbol := strings.ToUpper(symbol)
-		upperName := strings.ToUpper(name)
-
-		if strings.Contains(upperSymbol, keyword) || strings.Contains(upperName, keyword) {
-			var industry, market, fullSymbol string
-			if industryIdx >= 0 && industryIdx < len(item) {
-				industry, _ = item[industryIdx].(string)
-			}
-			// 从 ts_code 获取市场前缀
-			if tsCodeIdx >= 0 && tsCodeIdx < len(item) {
-				tsCode, _ := item[tsCodeIdx].(string)
-				if strings.HasSuffix(tsCode, ".SH") {
-					market = "上海"
-					fullSymbol = "sh" + symbol
-				} else if strings.HasSuffix(tsCode, ".SZ") {
-					market = "深圳"
-					fullSymbol = "sz" + symbol
-				}
-			}
-			if fullSymbol == "" {
-				fullSymbol = symbol
-			}
-
-			results = append(results, StockSearchResult{
-				Symbol:   fullSymbol,
-				Name:     name,
-				Industry: industry,
-				Market:   market,
-			})
-		}
-	}
-
-	return results
+	return searchEmbeddedStocks(keyword, limit)
 }
